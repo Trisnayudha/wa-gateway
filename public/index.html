@@ -1,0 +1,124 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>WA Gateway Admin</title>
+    <style>
+        body {
+            font-family: system-ui, Arial;
+            padding: 16px
+        }
+
+        .box {
+            max-width: 980px
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+            vertical-align: top
+        }
+
+        .ok {
+            color: #0a7;
+            font-weight: 700
+        }
+
+        .bad {
+            color: #c33;
+            font-weight: 700
+        }
+
+        button {
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            background: #fff;
+            cursor: pointer
+        }
+
+        input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            min-width: 260px
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 10px 0
+        }
+
+        img {
+            max-width: 260px;
+            border: 1px solid #eee;
+            border-radius: 10px
+        }
+
+        code {
+            background: #f6f6f6;
+            padding: 2px 6px;
+            border-radius: 6px
+        }
+
+        small {
+            color: #666
+        }
+    </style>
+</head>
+
+<body>
+    <div class="box">
+        <h2>WhatsApp Gateway (Internal)</h2>
+
+        <div class="row">
+            <input id="deviceName" placeholder="Device name (mis: IM Notif 1)" />
+            <button onclick="createDevice()">Add Device</button>
+            <button onclick="loadDevices()">Refresh</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Last Event</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+
+        <h3 style="margin-top:18px;">QR</h3>
+        <div id="qrWrap"><small>(click "Show QR" on a device)</small></div>
+
+        <h3 style="margin-top:18px;">Generated API Key</h3>
+        <div id="keyWrap"><small>(click "Create API Key")</small></div>
+
+        <hr style="margin:18px 0;" />
+
+        <h3>Test Send</h3>
+        <div class="row">
+            <input id="testKey" placeholder="X-API-KEY (paste here)" />
+            <input id="testTo" placeholder="To (62812xxxx)" />
+            <input id="testText" placeholder="Message text" />
+            <button onclick="testSend()">Send</button>
+        </div>
+        <div id="testResult"><small>(result)</small></div>
+    </div>
+
+    <script src="apps.js"></script>
+</body>
+
+</html>
