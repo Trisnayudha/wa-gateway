@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>API Keys</title>
+</head>
+
+<body style="font-family:system-ui;padding:24px">
+    <p><a href="/dashboard">← Back</a></p>
+    <h2>API Keys</h2>
+
+    <table border="1" cellpadding="8" cellspacing="0">
+        <tr>
+            <th>Label</th>
+            <th>Device ID</th>
+            <th>Active</th>
+            <th>Created</th>
+        </tr>
+        <% keys.forEach(k=> { %>
+            <tr>
+                <td>
+                    <%= k.label %>
+                </td>
+                <td>
+                    <%= k.device_id %>
+                </td>
+                <td>
+                    <%= k.is_active ? "yes" : "no" %>
+                </td>
+                <td>
+                    <%= k.createdAt %>
+                </td>
+            </tr>
+            <% }) %>
+    </table>
+</body>
+
+</html>

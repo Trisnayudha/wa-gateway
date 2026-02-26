@@ -1,0 +1,102 @@
+<% const body=` <div class="row g-3">
+    <div class="col-md-6 col-xl-3">
+        <div class="card card-shadow p-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="text-secondary small">Total Devices</div>
+                    <div class="h3 mb-0">${stats.totalDevices}</div>
+                </div>
+                <div class="stat-icon"><i class="bi bi-phone"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+        <div class="card card-shadow p-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="text-secondary small">Ready Devices</div>
+                    <div class="h3 mb-0">${stats.readyDevices}</div>
+                </div>
+                <div class="stat-icon" style="background:rgba(25,135,84,.12);color:#198754">
+                    <i class="bi bi-wifi"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+        <div class="card card-shadow p-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="text-secondary small">Total API Keys</div>
+                    <div class="h3 mb-0">${stats.totalKeys}</div>
+                </div>
+                <div class="stat-icon" style="background:rgba(255,193,7,.18);color:#b58100">
+                    <i class="bi bi-key"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+        <div class="card card-shadow p-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="text-secondary small">Total Messages</div>
+                    <div class="h3 mb-0">${stats.totalMessages}</div>
+                </div>
+                <div class="stat-icon" style="background:rgba(13,202,240,.18);color:#0aa2c0">
+                    <i class="bi bi-envelope-paper"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <div class="row g-3 mt-2">
+        <div class="col-lg-8">
+            <div class="card card-shadow">
+                <div class="card-body">
+                    <h5 class="mb-1">Quick Actions</h5>
+                    <div class="text-secondary small mb-3">Kelola device, API key, dan test pengiriman.</div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="/devices" class="btn btn-primary">
+                            <i class="bi bi-phone me-1"></i> Manage Devices
+                        </a>
+                        <a href="/api-keys" class="btn btn-outline-primary">
+                            <i class="bi bi-key me-1"></i> Manage API Keys
+                        </a>
+                        <a href="/messages" class="btn btn-outline-secondary">
+                            <i class="bi bi-list-check me-1"></i> View Logs
+                        </a>
+                        <a href="/docs" target="_blank" class="btn btn-outline-dark">
+                            <i class="bi bi-journal-text me-1"></i> API Docs
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card card-shadow">
+                <div class="card-body">
+                    <h6 class="mb-2">Status</h6>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-secondary">Session</span>
+                        <span class="badge text-bg-success">Logged in</span>
+                    </div>
+                    <hr />
+                    <div class="small text-secondary">
+                        Tips: bikin 1 nomor khusus notif. Kalau disconnect, scan QR ulang di menu Devices.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    `;
+
+    %>
+
+    <%- include('layout', { title: 'Dashboard' , active: 'dashboard' , user, body }) %>

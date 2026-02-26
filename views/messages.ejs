@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Messages</title>
+</head>
+
+<body style="font-family:system-ui;padding:24px">
+    <p><a href="/dashboard">← Back</a></p>
+    <h2>Messages (last 200)</h2>
+
+    <table border="1" cellpadding="8" cellspacing="0">
+        <tr>
+            <th>Device</th>
+            <th>To</th>
+            <th>Status</th>
+            <th>Text</th>
+            <th>Error</th>
+            <th>Time</th>
+        </tr>
+        <% messages.forEach(m=> { %>
+            <tr>
+                <td>
+                    <%= m.device_id %>
+                </td>
+                <td>
+                    <%= m.to_number %>
+                </td>
+                <td>
+                    <%= m.status %>
+                </td>
+                <td>
+                    <%= m.text %>
+                </td>
+                <td>
+                    <%= m.error || "-" %>
+                </td>
+                <td>
+                    <%= m.createdAt %>
+                </td>
+            </tr>
+            <% }) %>
+    </table>
+</body>
+
+</html>

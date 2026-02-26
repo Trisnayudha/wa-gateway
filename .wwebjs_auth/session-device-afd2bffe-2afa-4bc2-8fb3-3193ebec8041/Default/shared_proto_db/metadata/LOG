@@ -1,2 +1,3 @@
-2026/02/26-08:47:50.516 11dab0 Creating DB /Users/ingganasution/Kerja/Documents/Dokumen Kerja/wa-gateway/.wwebjs_auth/session-device-afd2bffe-2afa-4bc2-8fb3-3193ebec8041/Default/shared_proto_db/metadata since it was missing.
-2026/02/26-08:47:50.528 11dab0 Reusing MANIFEST /Users/ingganasution/Kerja/Documents/Dokumen Kerja/wa-gateway/.wwebjs_auth/session-device-afd2bffe-2afa-4bc2-8fb3-3193ebec8041/Default/shared_proto_db/metadata/MANIFEST-000001
+2026/02/26-09:04:03.413 12185c Reusing MANIFEST /Users/ingganasution/Kerja/Documents/Dokumen Kerja/wa-gateway/.wwebjs_auth/session-device-afd2bffe-2afa-4bc2-8fb3-3193ebec8041/Default/shared_proto_db/metadata/MANIFEST-000001
+2026/02/26-09:04:03.414 12185c Recovering log #3
+2026/02/26-09:04:03.414 12185c Reusing old log /Users/ingganasution/Kerja/Documents/Dokumen Kerja/wa-gateway/.wwebjs_auth/session-device-afd2bffe-2afa-4bc2-8fb3-3193ebec8041/Default/shared_proto_db/metadata/000003.log 
