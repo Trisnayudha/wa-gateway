@@ -2,38 +2,234 @@
 <html>
 
 <head>
-    <meta charset="utf-8" />
-    <title>API Keys</title>
+  <meta charset="utf-8" />
+  <title>API Keys</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 </head>
 
-<body style="font-family:system-ui;padding:24px">
-    <p><a href="/dashboard">← Back</a></p>
-    <h2>API Keys</h2>
+<body class="bg-light">
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <a class="text-decoration-none" href="/dashboard">← Back</a>
+        <h3 class="mt-2 mb-0">API Keys</h3>
+        <div class="text-secondary small">Create → copy once → use in <code>X-API-KEY</code></div>
+      </div>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCreateKey">
+        <i class="bi bi-plus-lg me-1"></i> Create API Key
+      </button>
+    </div>
 
-    <table border="1" cellpadding="8" cellspacing="0">
-        <tr>
-            <th>Label</th>
-            <th>Device ID</th>
-            <th>Active</th>
-            <th>Created</th>
-        </tr>
-        <% keys.forEach(k=> { %>
-            <tr>
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>Device ID</th>
+                <th>Active</th>
+                <th>Created</th>
+                <th style="width:220px">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if(!keys || keys.length === 0){ %>
+              <tr>
+                <td colspan="5" class="text-secondary">No API keys yet.</td>
+              </tr>
+              <% } %>
+
+              <% (keys || []).forEach(k => { %>
+              <tr>
+                <td class="fw-semibold"><%= k.label %></td>
+                <td><code><%= k.device_id %></code></td>
                 <td>
-                    <%= k.label %>
+                  <% if(k.is_active){ %>
+                  <span class="badge text-bg-success">YES</span>
+                  <% } else { %>
+                  <span class="badge text-bg-secondary">NO</span>
+                  <% } %>
+                </td>
+                <td class="text-secondary small">
+                  <%= (k.created_at || k.createdAt || '-') %>
                 </td>
                 <td>
-                    <%= k.device_id %>
+                  <div class="d-flex flex-wrap gap-2">
+                    <% if(!k.is_active){ %>
+                    <button class="btn btn-outline-success btn-sm" onclick="toggleActive('<%= k.id %>', true)">
+                      Activate
+                    </button>
+                    <% } else { %>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="toggleActive('<%= k.id %>', false)">
+                      Deactivate
+                    </button>
+                    <% } %>
+
+                    <button class="btn btn-outline-danger btn-sm" onclick="deleteKey('<%= k.id %>')">
+                      Delete
+                    </button>
+                  </div>
+                  <div class="text-secondary small mt-1">
+                    Raw key only shown on create.
+                  </div>
                 </td>
-                <td>
-                    <%= k.is_active ? "yes" : "no" %>
-                </td>
-                <td>
-                    <%= k.createdAt %>
-                </td>
-            </tr>
-            <% }) %>
-    </table>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: CREATE -->
+    <div class="modal fade" id="modalCreateKey" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:16px;">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-key me-2"></i>Create API Key</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+
+          <div class="modal-body">
+            <div class="mb-2">
+              <label class="form-label small">Device</label>
+              <select id="ck_device" class="form-select">
+                <% (devices || []).forEach(d => { %>
+                <option value="<%= d.id %>"><%= d.name %> (<%= d.id %>)</option>
+                <% }) %>
+              </select>
+              <% if(!devices || devices.length === 0){ %>
+              <div class="text-danger small mt-1">No device found. Create device first.</div>
+              <% } %>
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label small">Label</label>
+              <input id="ck_label" class="form-control" placeholder="Misal: Default / Production / Dashboard Test" />
+            </div>
+
+            <div id="ck_err" class="text-danger small mt-2" style="display:none;"></div>
+
+            <div id="ck_result" style="display:none;">
+              <hr />
+              <div class="alert alert-warning mb-2">
+                <b>Copy this key NOW.</b> It will not be shown again.
+              </div>
+
+              <label class="form-label small">Your API Key</label>
+              <div class="input-group">
+                <input id="ck_key" class="form-control" readonly />
+                <button class="btn btn-outline-secondary" type="button" onclick="copyKey()">
+                  <i class="bi bi-clipboard"></i>
+                </button>
+              </div>
+
+              <div class="text-secondary small mt-2">
+                Use this in header: <code>X-API-KEY: (your key)</code>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            <button class="btn btn-primary" onclick="createKey()">
+              <i class="bi bi-plus-lg me-1"></i>Create
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function showErr(msg) {
+      const el = document.getElementById('ck_err');
+      el.style.display = msg ? 'block' : 'none';
+      el.textContent = msg || '';
+    }
+
+    async function createKey() {
+      showErr('');
+      document.getElementById('ck_result').style.display = 'none';
+
+      const deviceId = (document.getElementById('ck_device').value || '').trim();
+      const label = (document.getElementById('ck_label').value || '').trim();
+
+      if (!deviceId) return showErr('Device is required');
+      if (!label) return showErr('Label is required');
+
+      try {
+        const res = await fetch('/api/admin/devices/' + encodeURIComponent(deviceId) + '/api-keys', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            label
+          })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data.ok) {
+          return showErr(data.message || 'Failed create api key');
+        }
+
+        // raw key muncul sekali
+        document.getElementById('ck_key').value = data.apiKey;
+        document.getElementById('ck_result').style.display = 'block';
+      } catch (e) {
+        showErr('Network error');
+      }
+    }
+
+    function copyKey() {
+      const v = document.getElementById('ck_key').value;
+      if (!v) return;
+      navigator.clipboard.writeText(v);
+    }
+
+    async function toggleActive(id, is_active) {
+      if (!confirm(is_active ? 'Activate this key? (others on same device will be deactivated)' : 'Deactivate this key?')) return;
+
+      const res = await fetch('/api/admin/api-keys/' + encodeURIComponent(id), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          is_active
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        return alert(data.message || 'Failed');
+      }
+
+      location.reload();
+    }
+
+    async function deleteKey(id) {
+      if (!confirm('Delete this key? This cannot be undone.')) return;
+
+      const res = await fetch('/api/admin/api-keys/' + encodeURIComponent(id), {
+        method: 'DELETE'
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        return alert(data.message || 'Failed');
+      }
+
+      location.reload();
+    }
+  </script>
 </body>
 
 </html>

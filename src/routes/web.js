@@ -1,23 +1,37 @@
 const express = require("express");
-const requireLogin = require("../middleware/requireLogin");
-
-const { Device, ApiKey, Message } = require("../db/models");
-
 const router = express.Router();
 
-router.get("/", (req, res) => res.redirect("/dashboard"));
+const { Device, ApiKey, Message } = require("../db/models"); // sesuaikan path model kamu
+const requireLogin = require("../middleware/requireLogin");
 
 router.get("/dashboard", requireLogin, async (req, res) => {
+    // stats kamu (kalau udah ada, pakai punyamu)
     const totalDevices = await Device.count();
-    const readyDevices = await Device.count({ where: { status: "READY" } });
+    const readyDevicesCt = await Device.count({ where: { status: "READY" } });
     const totalKeys = await ApiKey.count();
     const totalMessages = await Message.count();
 
+    const stats = {
+        totalDevices,
+        readyDevices: readyDevicesCt,
+        totalKeys,
+        totalMessages,
+    };
+
+    const readyDevices = await Device.findAll({
+        where: { status: "READY" },
+        order: [["createdAt", "DESC"]],
+        attributes: ["id", "name", "status", "last_event"], // sesuaikan kolommu
+    });
+
     res.render("dashboard", {
         user: req.session.user,
-        stats: { totalDevices, readyDevices, totalKeys, totalMessages },
+        stats,
+        readyDevices, // ✅ ini yang bikin EJS nggak error
     });
 });
+
+module.exports = router;
 
 router.get("/devices", requireLogin, async (req, res) => {
     const devices = await Device.findAll({ order: [["createdAt", "DESC"]] });
@@ -25,8 +39,10 @@ router.get("/devices", requireLogin, async (req, res) => {
 });
 
 router.get("/api-keys", requireLogin, async (req, res) => {
-    const keys = await ApiKey.findAll({ order: [["createdAt", "DESC"]] });
-    res.render("api-keys", { user: req.session.user, keys });
+    const devices = await Device.findAll({ order: [["createdAt", "DESC"]] });
+    const keys = await ApiKey.findAll({ order: [["created_at", "DESC"]] });
+
+    res.render("api-keys", { user: req.session.user, devices, keys });
 });
 
 router.get("/messages", requireLogin, async (req, res) => {

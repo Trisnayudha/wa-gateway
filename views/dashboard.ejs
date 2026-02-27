@@ -1,102 +1,293 @@
-<% const body=` <div class="row g-3">
-    <div class="col-md-6 col-xl-3">
-        <div class="card card-shadow p-3">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <div class="text-secondary small">Total Devices</div>
-                    <div class="h3 mb-0">${stats.totalDevices}</div>
-                </div>
-                <div class="stat-icon"><i class="bi bi-phone"></i></div>
-            </div>
-        </div>
-    </div>
+<%
+  const s = stats || {};
+  const totalDevices   = Number(s.totalDevices || 0);
+  const readyDevicesCt = Number(s.readyDevices || 0);
+  const totalKeys      = Number(s.totalKeys || 0);
+  const totalMessages  = Number(s.totalMessages || 0);
 
-    <div class="col-md-6 col-xl-3">
-        <div class="card card-shadow p-3">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <div class="text-secondary small">Ready Devices</div>
-                    <div class="h3 mb-0">${stats.readyDevices}</div>
-                </div>
-                <div class="stat-icon" style="background:rgba(25,135,84,.12);color:#198754">
-                    <i class="bi bi-wifi"></i>
-                </div>
-            </div>
-        </div>
-    </div>
+  const readyDevicesArr = Array.isArray(readyDevices) ? readyDevices : [];
+  const deviceOptions = readyDevicesArr.map(d => {
+    const id = String(d.id || "");
+    const name = String(d.name || id);
+    return `<option value="${id}">${name} (${id})</option>`;
+  }).join("");
 
+  const body = `
+  <div class="row g-3">
     <div class="col-md-6 col-xl-3">
-        <div class="card card-shadow p-3">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <div class="text-secondary small">Total API Keys</div>
-                    <div class="h3 mb-0">${stats.totalKeys}</div>
-                </div>
-                <div class="stat-icon" style="background:rgba(255,193,7,.18);color:#b58100">
-                    <i class="bi bi-key"></i>
-                </div>
-            </div>
+      <div class="card card-shadow p-3">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="text-secondary small">Total Devices</div>
+            <div class="h3 mb-0">${totalDevices}</div>
+          </div>
+          <div class="stat-icon"><i class="bi bi-phone"></i></div>
         </div>
+      </div>
     </div>
 
     <div class="col-md-6 col-xl-3">
-        <div class="card card-shadow p-3">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <div class="text-secondary small">Total Messages</div>
-                    <div class="h3 mb-0">${stats.totalMessages}</div>
-                </div>
-                <div class="stat-icon" style="background:rgba(13,202,240,.18);color:#0aa2c0">
-                    <i class="bi bi-envelope-paper"></i>
-                </div>
-            </div>
+      <div class="card card-shadow p-3">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="text-secondary small">Ready Devices</div>
+            <div class="h3 mb-0">${readyDevicesCt}</div>
+          </div>
+          <div class="stat-icon" style="background:rgba(25,135,84,.12);color:#198754">
+            <i class="bi bi-wifi"></i>
+          </div>
         </div>
-    </div>
+      </div>
     </div>
 
-    <div class="row g-3 mt-2">
-        <div class="col-lg-8">
-            <div class="card card-shadow">
-                <div class="card-body">
-                    <h5 class="mb-1">Quick Actions</h5>
-                    <div class="text-secondary small mb-3">Kelola device, API key, dan test pengiriman.</div>
-
-                    <div class="d-flex flex-wrap gap-2">
-                        <a href="/devices" class="btn btn-primary">
-                            <i class="bi bi-phone me-1"></i> Manage Devices
-                        </a>
-                        <a href="/api-keys" class="btn btn-outline-primary">
-                            <i class="bi bi-key me-1"></i> Manage API Keys
-                        </a>
-                        <a href="/messages" class="btn btn-outline-secondary">
-                            <i class="bi bi-list-check me-1"></i> View Logs
-                        </a>
-                        <a href="/docs" target="_blank" class="btn btn-outline-dark">
-                            <i class="bi bi-journal-text me-1"></i> API Docs
-                        </a>
-                    </div>
-                </div>
-            </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card card-shadow p-3">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="text-secondary small">Total API Keys</div>
+            <div class="h3 mb-0">${totalKeys}</div>
+          </div>
+          <div class="stat-icon" style="background:rgba(255,193,7,.18);color:#b58100">
+            <i class="bi bi-key"></i>
+          </div>
         </div>
-
-        <div class="col-lg-4">
-            <div class="card card-shadow">
-                <div class="card-body">
-                    <h6 class="mb-2">Status</h6>
-                    <div class="d-flex justify-content-between">
-                        <span class="text-secondary">Session</span>
-                        <span class="badge text-bg-success">Logged in</span>
-                    </div>
-                    <hr />
-                    <div class="small text-secondary">
-                        Tips: bikin 1 nomor khusus notif. Kalau disconnect, scan QR ulang di menu Devices.
-                    </div>
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
-    `;
 
-    %>
+    <div class="col-md-6 col-xl-3">
+      <div class="card card-shadow p-3">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="text-secondary small">Total Messages</div>
+            <div class="h3 mb-0">${totalMessages}</div>
+          </div>
+          <div class="stat-icon" style="background:rgba(13,202,240,.18);color:#0aa2c0">
+            <i class="bi bi-envelope-paper"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    <%- include('layout', { title: 'Dashboard' , active: 'dashboard' , user, body }) %>
+  <div class="row g-3 mt-2">
+    <!-- LEFT: Quick Actions -->
+    <div class="col-lg-6">
+      <div class="card card-shadow">
+        <div class="card-body">
+          <h5 class="mb-1">Quick Actions</h5>
+          <div class="text-secondary small mb-3">Kelola device, API key, dan logs.</div>
+
+          <div class="d-flex flex-wrap gap-2">
+            <a href="/devices" class="btn btn-primary">
+              <i class="bi bi-phone me-1"></i> Manage Devices
+            </a>
+            <a href="/api-keys" class="btn btn-outline-primary">
+              <i class="bi bi-key me-1"></i> Manage API Keys
+            </a>
+            <a href="/messages" class="btn btn-outline-secondary">
+              <i class="bi bi-list-check me-1"></i> View Logs
+            </a>
+            <a href="/docs" target="_blank" class="btn btn-outline-dark">
+              <i class="bi bi-journal-text me-1"></i> API Docs
+            </a>
+          </div>
+
+          <hr />
+
+          <div class="d-flex justify-content-between">
+            <span class="text-secondary">Session</span>
+            <span class="badge text-bg-success">Logged in</span>
+          </div>
+
+          <div class="small text-secondary mt-2">
+            Tips: bikin 1 nomor khusus notif. Kalau disconnect, scan QR ulang di menu Devices.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Send Test Message -->
+    <div class="col-lg-6">
+      <div class="card card-shadow">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h5 class="mb-1">Send Test Message</h5>
+              <div class="text-secondary small">
+                Test kirim pesan pakai endpoint <code>POST /api/send</code> (Header <code>X-API-KEY</code>).
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-2 mt-2">
+            <div class="col-md-6">
+              <label class="form-label small mb-1">Device (READY)</label>
+              <select class="form-select" id="sm_device" onchange="loadDefaultKey()">
+                ${
+                  deviceOptions
+                    ? deviceOptions
+                    : `<option value="">No READY device</option>`
+                }
+              </select>
+              <div class="text-secondary small mt-1">
+                Pilih device READY → API key auto keisi.
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small mb-1">X-API-KEY</label>
+              <input class="form-control" id="sm_key" placeholder="auto filled..." />
+              <div class="text-secondary small mt-1">
+                Kamu bisa replace manual kalau mau.
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small mb-1">To (Nomor WA)</label>
+              <input class="form-control" id="sm_to" placeholder="62812xxxxxxx" />
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small mb-1">Preset</label>
+              <select class="form-select" id="sm_preset" onchange="applyPreset()">
+                <option value="">(optional)</option>
+                <option value="ok">OK / Test</option>
+                <option value="im">IM Registration</option>
+                <option value="warn">Warning</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label small mb-1">Message</label>
+              <textarea class="form-control" id="sm_text" rows="3" placeholder="Tulis pesan..."></textarea>
+              <div class="text-secondary small mt-1">
+                Format saran: gunakan 62xxx. Hindari spam biar aman.
+              </div>
+            </div>
+
+            <div class="col-12 d-flex gap-2 align-items-center mt-1">
+              <button class="btn btn-primary" onclick="sendViaApi()">
+                <i class="bi bi-send me-1"></i> Send
+              </button>
+              <button class="btn btn-outline-secondary" onclick="clearSendForm()">Clear</button>
+              <div id="sm_status" class="small ms-1"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function setStatus(msg, type){
+      const el = document.getElementById('sm_status');
+      if(!el) return;
+
+      if(!msg){
+        el.innerHTML = '';
+        return;
+      }
+
+      const cls =
+        type === 'ok' ? 'text-success' :
+        type === 'warn' ? 'text-warning' :
+        'text-danger';
+
+      el.innerHTML = '<span class="' + cls + '">' + msg + '</span>';
+    }
+
+    function clearSendForm(){
+      document.getElementById('sm_to').value = '';
+      document.getElementById('sm_text').value = '';
+      document.getElementById('sm_preset').value = '';
+      setStatus('', 'ok');
+    }
+
+    function applyPreset(){
+      const p = document.getElementById('sm_preset').value;
+      const ta = document.getElementById('sm_text');
+      if(!p) return;
+
+      if(p === 'ok'){
+        ta.value = 'Test message: OK ✅';
+      } else if(p === 'im'){
+        ta.value = 'Events Mining Detail Pendaftaran: NEW / RE-OPENED REGISTRATION (CREATED WITH STATUS: WAITING)';
+      } else if(p === 'warn'){
+        ta.value = '⚠️ Warning: please check your registration status.';
+      }
+    }
+
+    async function loadDefaultKey(){
+      const deviceId = document.getElementById('sm_device').value;
+      const keyEl = document.getElementById('sm_key');
+      keyEl.value = '';
+
+      if(!deviceId){
+        setStatus('No READY device selected.', 'warn');
+        return;
+      }
+
+      setStatus('Loading API key...', 'warn');
+
+      try{
+        const res = await fetch('/api/admin/devices/' + encodeURIComponent(deviceId) + '/default-key');
+        const data = await res.json().catch(()=>({}));
+
+        if(!res.ok || !data.ok){
+          setStatus(data.message || 'No active API key for this device.', 'err');
+          return;
+        }
+
+        keyEl.value = data.api_key;
+        setStatus('API key loaded ✅', 'ok');
+      }catch(e){
+        setStatus('Network error when loading API key.', 'err');
+      }
+    }
+
+    async function sendViaApi(){
+      const key = (document.getElementById('sm_key').value || '').trim();
+      const to = (document.getElementById('sm_to').value || '').trim();
+      const text = (document.getElementById('sm_text').value || '').trim();
+
+      if(!key) return setStatus('X-API-KEY empty.', 'warn');
+      if(!to) return setStatus('Nomor tujuan wajib.', 'warn');
+      if(!text) return setStatus('Pesan wajib.', 'warn');
+
+      setStatus('Sending...', 'warn');
+
+      try{
+        const res = await fetch('/api/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-KEY': key
+          },
+          body: JSON.stringify({ to, text })
+        });
+
+        const data = await res.json().catch(()=>({}));
+
+        if(!res.ok || !data.ok){
+          return setStatus(data.message || 'Failed sending.', 'err');
+        }
+
+        setStatus('Sent ✅ messageId: ' + (data.messageId || '-'), 'ok');
+      }catch(e){
+        setStatus('Network error.', 'err');
+      }
+    }
+
+    // auto load key for first option (kalau ada)
+    document.addEventListener('DOMContentLoaded', () => {
+      const sel = document.getElementById('sm_device');
+      if(sel && sel.value){
+        loadDefaultKey();
+      }
+    });
+  </script>
+  `;
+%>
+
+<%- include('layout', { title: 'Dashboard', active: 'dashboard', user, body }) %>
