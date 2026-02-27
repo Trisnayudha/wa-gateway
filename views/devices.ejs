@@ -1,4 +1,4 @@
-<% const rows=devices.map(d=> `
+<% const rows=(devices || []).map(d=> `
     <tr>
         <td>
             <div class="fw-semibold">${d.name}</div>
@@ -8,10 +8,32 @@
             ${
             d.status === 'READY'
             ? '<span class="badge text-bg-success">READY</span>'
-            : '<span class="badge text-bg-secondary">DISCONNECTED</span>'
+            : (d.status === 'CONNECTING'
+            ? '<span class="badge text-bg-warning">CONNECTING</span>'
+            : '<span class="badge text-bg-secondary">DISCONNECTED</span>')
             }
         </td>
         <td><code>${d.last_event || '-'}</code></td>
+        <td>
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-secondary btn-sm"
+                    onclick='openEditDevice("${d.id}", ${JSON.stringify(d.name || "")})'>
+                    <i class="bi bi-pencil-square me-1"></i>Edit
+                </button>
+
+                <button class="btn btn-outline-primary btn-sm" onclick='openQr("${d.id}")'>
+                    <i class="bi bi-qr-code-scan me-1"></i>QR
+                </button>
+
+                <button class="btn btn-outline-danger btn-sm" onclick='restartDevice("${d.id}")'>
+                    <i class="bi bi-arrow-clockwise me-1"></i>Restart
+                </button>
+            </div>
+
+            <div class="text-secondary small mt-2">
+                Jika <b>DISCONNECTED</b>, klik <b>QR</b> untuk scan ulang.
+            </div>
+        </td>
     </tr>
     `).join('');
 
@@ -23,9 +45,12 @@
                     <h5 class="mb-0">Devices</h5>
                     <div class="text-secondary small">Monitor koneksi device dan status session.</div>
                 </div>
-                <a class="btn btn-outline-primary btn-sm" href="/" target="_blank">
-                    <i class="bi bi-box-arrow-up-right me-1"></i> Open Public Admin (QR Tool)
-                </a>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAddDevice">
+                        <i class="bi bi-plus-lg me-1"></i> Add Device
+                    </button>
+                </div>
             </div>
 
             <div class="table-responsive">
@@ -35,22 +60,244 @@
                             <th>Device</th>
                             <th>Status</th>
                             <th>Last Event</th>
+                            <th style="width:360px">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${rows || `<tr>
-                            <td colspan="3" class="text-secondary">No devices</td>
-                        </tr>`}
+                        ${rows || `
+                        <tr>
+                            <td colspan="4" class="text-secondary">No devices</td>
+                        </tr>
+                        `}
                     </tbody>
                 </table>
             </div>
 
-            <div class="alert alert-warning mb-0">
-                <b>Next step:</b> nanti kita pindahkan fitur <i>Add Device</i>, <i>Show QR</i>, dan <i>Create API
-                    Key</i> langsung ke halaman ini biar full seperti NusaGateway.
+            <div class="text-secondary small">Tips: auto refresh status akan kita tambah setelah fitur stabil.</div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD DEVICE -->
+    <div class="modal fade" id="modalAddDevice" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:16px;">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add Device</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label small">Device Name</label>
+                    <input id="addDeviceName" class="form-control" placeholder="Misal: IM Notif 1" />
+                    <div class="text-secondary small mt-2">
+                        Setelah device dibuat, klik tombol <b>QR</b> untuk scan.
+                    </div>
+                    <div id="addDeviceErr" class="text-danger small mt-2" style="display:none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" onclick="addDevice()">
+                        <i class="bi bi-check2 me-1"></i>Create
+                    </button>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- MODAL: EDIT DEVICE -->
+    <div class="modal fade" id="modalEditDevice" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:16px;">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Edit Device</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editDeviceId" />
+                    <label class="form-label small">Device Name</label>
+                    <input id="editDeviceName" class="form-control" />
+                    <div id="editDeviceErr" class="text-danger small mt-2" style="display:none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveEditDevice()">
+                        <i class="bi bi-check2 me-1"></i>Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: QR -->
+    <div class="modal fade" id="modalQr" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:16px;">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-qr-code-scan me-2"></i>Scan QR</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="qrDeviceId" />
+                    <div id="qrBox" class="text-center py-2">
+                        <div class="text-secondary small">Loading QR...</div>
+                    </div>
+
+                    <div class="text-secondary small mt-3">
+                        WhatsApp di HP → <b>Linked Devices</b> → <b>Link a device</b> → Scan QR.
+                        <br />
+                        Jika QR tidak muncul, coba klik <b>Restart</b> lalu <b>Reload QR</b>.
+                    </div>
+
+                    <div id="qrErr" class="text-danger small mt-2" style="display:none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                    <button class="btn btn-primary" onclick="reloadQr()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Reload QR
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function addDevice() {
+            const nameEl = document.getElementById('addDeviceName');
+            const errEl = document.getElementById('addDeviceErr');
+            const name = (nameEl.value || '').trim();
+
+            errEl.style.display = 'none';
+            errEl.textContent = '';
+
+            if (!name) {
+                errEl.style.display = 'block';
+                errEl.textContent = 'Device name is required.';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/admin/devices', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok || !data.ok) {
+                    errEl.style.display = 'block';
+                    errEl.textContent = data.message || 'Failed to create device.';
+                    return;
+                }
+
+                window.location.reload();
+            } catch (e) {
+                errEl.style.display = 'block';
+                errEl.textContent = 'Network error. Check server log.';
+            }
+        }
+
+        function openEditDevice(id, name) {
+            document.getElementById('editDeviceId').value = id;
+            document.getElementById('editDeviceName').value = name || '';
+            document.getElementById('editDeviceErr').style.display = 'none';
+
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditDevice')).show();
+        }
+
+        async function saveEditDevice() {
+            const id = (document.getElementById('editDeviceId').value || '').trim();
+            const name = (document.getElementById('editDeviceName').value || '').trim();
+            const errEl = document.getElementById('editDeviceErr');
+
+            errEl.style.display = 'none';
+            errEl.textContent = '';
+
+            if (!id) return;
+            if (!name) {
+                errEl.style.display = 'block';
+                errEl.textContent = 'Device name is required.';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/admin/devices/' + encodeURIComponent(id), {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok || !data.ok) {
+                    errEl.style.display = 'block';
+                    errEl.textContent = data.message || 'Failed to update device.';
+                    return;
+                }
+
+                window.location.reload();
+            } catch (e) {
+                errEl.style.display = 'block';
+                errEl.textContent = 'Network error. Check server log.';
+            }
+        }
+
+        function openQr(id) {
+            document.getElementById('qrDeviceId').value = id;
+            document.getElementById('qrErr').style.display = 'none';
+            document.getElementById('qrBox').innerHTML = '<div class="text-secondary small">Loading QR...</div>';
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalQr')).show();
+            loadQr(id);
+        }
+
+        async function reloadQr() {
+            const id = document.getElementById('qrDeviceId').value;
+            if (!id) return;
+            await loadQr(id);
+        }
+
+        async function loadQr(id) {
+            const box = document.getElementById('qrBox');
+            const err = document.getElementById('qrErr');
+            err.style.display = 'none';
+            err.textContent = '';
+
+            try {
+                const res = await fetch('/api/admin/devices/' + encodeURIComponent(id) + '/qr');
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok || !data.ok) {
+                    box.innerHTML = '<div class="alert alert-warning m-0">QR not available</div>';
+                    err.style.display = 'block';
+                    err.textContent = data.message || 'QR not available. If device already READY, you may not need QR.';
+                    return;
+                }
+
+                // data.qr bisa berupa dataURL base64 atau url
+                box.innerHTML = '<img src="' + data.qr + '" style="max-width:280px;border:1px solid #eee;border-radius:12px;" />';
+            } catch (e) {
+                box.innerHTML = '<div class="alert alert-warning m-0">Failed load QR</div>';
+                err.style.display = 'block';
+                err.textContent = 'Network error when loading QR.';
+            }
+        }
+
+        async function restartDevice(id) {
+            if (!confirm('Restart device? Ini akan reset session dan kemungkinan perlu scan QR lagi.')) return;
+
+            try {
+                const res = await fetch('/api/admin/devices/' + encodeURIComponent(id) + '/restart', { method: 'POST' });
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok || !data.ok) {
+                    alert(data.message || 'Failed restart device');
+                    return;
+                }
+
+                alert('Restart triggered. Jika disconnect, buka QR dan scan ulang.');
+                window.location.reload();
+            } catch (e) {
+                alert('Network error when restarting device');
+            }
+        }
+    </script>
     `;
     %>
 

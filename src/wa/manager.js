@@ -13,6 +13,32 @@ class WaManager {
         for (const d of devices) this.ensureClient(d.id);
     }
 
+    // tambahkan di wa/manager.js
+    async restart(deviceId) {
+        const client = this.clients.get(deviceId);
+        try {
+            if (client) {
+                await client.destroy();
+            }
+        } catch (e) {
+            // ignore
+        }
+
+        this.clients.delete(deviceId);
+        this.qrMap.delete(deviceId);
+
+        // set status disconnected
+        const { Device } = require("../db/models");
+        await Device.update(
+            { status: "DISCONNECTED", last_event: "restarting" },
+            { where: { id: deviceId } }
+        );
+
+        // re-init (will generate QR)
+        this.ensureClient(deviceId);
+        return true;
+    }
+
     ensureClient(deviceId) {
         if (this.clients.has(deviceId)) return this.clients.get(deviceId);
 

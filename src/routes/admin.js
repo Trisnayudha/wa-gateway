@@ -24,6 +24,37 @@ router.post("/devices", async (req, res) => {
     res.json({ ok: true, device });
 });
 
+// Tambahkan di src/routes/admin.js
+
+// PATCH /api/admin/devices/:id  { name }
+router.patch("/devices/:id", async (req, res) => {
+    const { name } = req.body || {};
+    if (!name) return res.status(400).json({ ok: false, message: "name required" });
+
+    const device = await Device.findByPk(req.params.id);
+    if (!device) return res.status(404).json({ ok: false, message: "Device not found" });
+
+    device.name = name;
+    await device.save();
+
+    res.json({ ok: true, device });
+});
+
+// POST /api/admin/devices/:id/restart
+router.post("/devices/:id/restart", async (req, res) => {
+    const device = await Device.findByPk(req.params.id);
+    if (!device) return res.status(404).json({ ok: false, message: "Device not found" });
+
+    await wa.restart(req.params.id);
+    res.json({ ok: true, message: "Restarting device. Please scan QR again if needed." });
+});
+
+// GET /api/admin/devices/status (for polling)
+router.get("/devices/status", async (req, res) => {
+    const devices = await Device.findAll({ order: [["createdAt", "DESC"]] });
+    res.json({ ok: true, devices });
+});
+
 // GET /api/admin/devices/:id/qr
 router.get("/devices/:id/qr", async (req, res) => {
     const qr = wa.getQr(req.params.id);
