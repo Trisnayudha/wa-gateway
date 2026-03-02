@@ -122,7 +122,7 @@
           <div class="row g-2 mt-2">
             <div class="col-md-6">
               <label class="form-label small mb-1">Device (READY)</label>
-              <select class="form-select" id="sm_device" onchange="loadDefaultKey()">
+              <select class="form-select" id="sm_device" onchange="loadActiveKey()">
                 ${
                   deviceOptions
                     ? deviceOptions
@@ -218,8 +218,9 @@
       }
     }
 
-    async function loadDefaultKey(){
-      const deviceId = document.getElementById('sm_device').value;
+    // ✅ ini yang bener: ambil key aktif dari endpoint yang kamu punya
+    async function loadActiveKey(){
+      const deviceId = (document.getElementById('sm_device').value || '').trim();
       const keyEl = document.getElementById('sm_key');
       keyEl.value = '';
 
@@ -230,8 +231,17 @@
 
       setStatus('Loading API key...', 'warn');
 
+      // 1) coba ambil dari localStorage dulu (kalau kamu pernah save setelah create)
+      const local = localStorage.getItem('wg_api_key_' + deviceId);
+      if(local){
+        keyEl.value = local;
+        setStatus('API key loaded ✅ (local)', 'ok');
+        return;
+      }
+
+      // 2) fallback: ambil dari server (admin-only)
       try{
-        const res = await fetch('/api/admin/devices/' + encodeURIComponent(deviceId) + '/default-key');
+        const res = await fetch('/api/admin/devices/' + encodeURIComponent(deviceId) + '/active-api-key');
         const data = await res.json().catch(()=>({}));
 
         if(!res.ok || !data.ok){
@@ -239,51 +249,56 @@
           return;
         }
 
-        keyEl.value = data.api_key;
-        setStatus('API key loaded ✅', 'ok');
+        // response kamu: { ok:true, apiKey:"wg_..." }
+        keyEl.value = data.apiKey || '';
+        if(keyEl.value){
+          setStatus('API key loaded ✅', 'ok');
+        }else{
+          setStatus('Active key found but plain key is empty.', 'warn');
+        }
       }catch(e){
         setStatus('Network error when loading API key.', 'err');
       }
     }
 
-    async function sendViaApi(){
-      const key = (document.getElementById('sm_key').value || '').trim();
-      const to = (document.getElementById('sm_to').value || '').trim();
-      const text = (document.getElementById('sm_text').value || '').trim();
+   async function sendViaApi(){
+  const device_id = (document.getElementById('sm_device').value || '').trim();
+  const key = (document.getElementById('sm_key').value || '').trim();
+  const to = (document.getElementById('sm_to').value || '').trim();
+  const text = (document.getElementById('sm_text').value || '').trim();
 
-      if(!key) return setStatus('X-API-KEY empty.', 'warn');
-      if(!to) return setStatus('Nomor tujuan wajib.', 'warn');
-      if(!text) return setStatus('Pesan wajib.', 'warn');
+  if(!device_id) return setStatus('Device wajib dipilih.', 'warn');
+  if(!key) return setStatus('X-API-KEY empty.', 'warn');
+  if(!to) return setStatus('Nomor tujuan wajib.', 'warn');
+  if(!text) return setStatus('Pesan wajib.', 'warn');
 
-      setStatus('Sending...', 'warn');
+  setStatus('Sending...', 'warn');
 
-      try{
-        const res = await fetch('/api/send', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-KEY': key
-          },
-          body: JSON.stringify({ to, text })
-        });
+  try{
+    const res = await fetch('/api/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-KEY': key
+      },
+      body: JSON.stringify({ device_id, to, text }) // ✅ FIX DI SINI
+    });
 
-        const data = await res.json().catch(()=>({}));
+    const data = await res.json().catch(()=>({}));
 
-        if(!res.ok || !data.ok){
-          return setStatus(data.message || 'Failed sending.', 'err');
-        }
-
-        setStatus('Sent ✅ messageId: ' + (data.messageId || '-'), 'ok');
-      }catch(e){
-        setStatus('Network error.', 'err');
-      }
+    if(!res.ok || !data.ok){
+      return setStatus(data.message || 'Failed sending.', 'err');
     }
 
-    // auto load key for first option (kalau ada)
+    setStatus('Sent ✅ messageId: ' + (data.messageId || '-'), 'ok');
+  }catch(e){
+    setStatus('Network error.', 'err');
+  }
+}
     document.addEventListener('DOMContentLoaded', () => {
       const sel = document.getElementById('sm_device');
       if(sel && sel.value){
-        loadDefaultKey();
+        loadActiveKey();
       }
     });
   </script>

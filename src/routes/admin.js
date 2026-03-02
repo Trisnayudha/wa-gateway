@@ -29,8 +29,6 @@ router.post("/devices", async (req, res) => {
     }
 
     const device = await Device.create({ name: String(name).trim() });
-
-    // ensure WA client exists (generate QR later when needed)
     wa.ensureClient(device.id);
 
     res.json({ ok: true, device });
@@ -58,14 +56,10 @@ router.post("/devices/:id/restart", async (req, res) => {
     if (!device) return res.status(404).json({ ok: false, message: "Device not found" });
 
     await wa.restart(req.params.id);
-
-    res.json({
-        ok: true,
-        message: "Restarting device. If disconnected, scan QR again.",
-    });
+    res.json({ ok: true, message: "Restarting device. If disconnected, scan QR again." });
 });
 
-// GET /api/admin/devices/status (polling)
+// GET /api/admin/devices/status
 router.get("/devices/status", async (req, res) => {
     const devices = await Device.findAll({ order: [["createdAt", "DESC"]] });
     res.json({ ok: true, devices });
@@ -85,8 +79,6 @@ router.get("/devices/:id/qr", async (req, res) => {
 
 /**
  * API KEYS
- * - disimpan HASH only (key_hash)
- * - raw key hanya muncul sekali di response create
  */
 
 // GET /api/admin/devices/:id/api-keys
@@ -96,12 +88,8 @@ router.get("/devices/:id/api-keys", async (req, res) => {
     const device = await Device.findByPk(device_id);
     if (!device) return res.status(404).json({ ok: false, message: "Device not found" });
 
-    const keys = await ApiKey.findAll({
-        where: { device_id },
-        order: [["created_at", "DESC"]],
-    });
+    const keys = await ApiKey.findAll({ where: { device_id }, order: [["created_at", "DESC"]] });
 
-    // jangan pernah balikin raw key
     res.json({
         ok: true,
         keys: keys.map((k) => ({
@@ -126,25 +114,36 @@ router.post("/devices/:id/api-keys", async (req, res) => {
     const device = await Device.findByPk(device_id);
     if (!device) return res.status(404).json({ ok: false, message: "Device not found" });
 
-    // optional: non-aktifkan key sebelumnya biar cuma 1 aktif
-    await ApiKey.update(
-        { is_active: false },
-        { where: { device_id, is_active: true } }
-    );
+    await ApiKey.update({ is_active: false }, { where: { device_id, is_active: true } });
 
-    const plain = genKey(); // show ONCE
+    const plain = genKey();
     const hash = await bcrypt.hash(plain, 10);
 
     const created = await ApiKey.create({
         device_id,
         label: String(label).trim(),
         key_hash: hash,
-        api_key_plain: plain,   // 🔥 tambahkan ini
+        api_key_plain: plain, // kalau memang kamu simpan
         is_active: true,
     });
 
-    // ✅ raw key hanya muncul sekali di sini
     res.json({ ok: true, apiKeyId: created.id, apiKey: plain });
+});
+
+// GET /api/admin/devices/:id/active-api-key  (buat auto-fill dashboard)
+router.get("/devices/:id/active-api-key", async (req, res) => {
+    const device_id = req.params.id;
+
+    const k = await ApiKey.findOne({
+        where: { device_id, is_active: true },
+        order: [["created_at", "DESC"]],
+    });
+
+    if (!k) {
+        return res.status(404).json({ ok: false, message: "No active API key. Create one first." });
+    }
+
+    res.json({ ok: true, apiKeyId: k.id, apiKey: k.api_key_plain || null });
 });
 
 // PATCH /api/admin/api-keys/:id { is_active }
@@ -153,37 +152,6 @@ router.patch("/api-keys/:id", async (req, res) => {
     const k = await ApiKey.findByPk(req.params.id);
     if (!k) return res.status(404).json({ ok: false, message: "API key not found" });
 
-    // jika activate -> nonaktifkan semua key lain di device
-    if (is_active === true || is_active === 1) {
-        await ApiKey.update(
-            { is_active: false },
-            { where: { device_id: k.device_id } }
-        );
-        k.is_active = true;
-    } else {
-        k.is_active = false;
-    }
-
-    await k.save();
-    res.json({ ok: true, key: { id: k.id, device_id: k.device_id, label: k.label, is_active: !!k.is_active } });
-});
-
-// GET /api/admin/api-keys  (list)
-router.get("/api-keys", async (req, res) => {
-    const keys = await ApiKey.findAll({ order: [["created_at", "DESC"]] });
-    res.json({ ok: true, keys });
-});
-
-// GET /api/admin/devices  (already exist) -> dipakai dropdown create key
-// POST /api/admin/devices/:id/api-keys (already exist) -> create
-
-// PATCH /api/admin/api-keys/:id  { is_active: true/false }
-router.patch("/api-keys/:id", async (req, res) => {
-    const { is_active } = req.body || {};
-    const k = await ApiKey.findByPk(req.params.id);
-    if (!k) return res.status(404).json({ ok: false, message: "API key not found" });
-
-    // kalau activate -> nonaktifkan semua key lain untuk device yg sama
     if (is_active === true || is_active === 1) {
         await ApiKey.update({ is_active: false }, { where: { device_id: k.device_id } });
         k.is_active = true;

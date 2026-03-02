@@ -26,6 +26,7 @@ const ApiKey = sequelize.define("ApiKey", {
     label: { type: DataTypes.STRING, allowNull: false },
     key_hash: { type: DataTypes.STRING, allowNull: false },
     is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
+    api_key_plain: { type: DataTypes.STRING, allowNull: false }, // ✅ plain
 }, { tableName: "api_keys", underscored: true });
 
 // ===== MESSAGES LOG =====
