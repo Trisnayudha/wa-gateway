@@ -1,47 +1,85 @@
-<!doctype html>
-<html>
+<%
+const rows = (messages || []).map(m => `
+<tr>
+    <td>
+        <div class="fw-semibold">${m.device_id}</div>
+    </td>
+    <td><code>${m.to_number}</code></td>
+    <td>
+        ${
+            m.status === 'SENT'
+            ? '<span class="badge text-bg-success">SENT</span>'
+            : (m.status === 'FAILED'
+                ? '<span class="badge text-bg-danger">FAILED</span>'
+                : '<span class="badge text-bg-secondary">' + (m.status || 'UNKNOWN') + '</span>')
+        }
+    </td>
+    <td style="max-width:280px">
+        <div class="text-truncate" title="${(m.text || '').replace(/"/g, '&quot;')}">
+            ${m.text || '-'}
+        </div>
+    </td>
+    <td>
+        ${m.error
+            ? `<span class="text-danger small">${m.error}</span>`
+            : '<span class="text-secondary small">-</span>'
+        }
+    </td>
+    <td class="text-secondary small">
+        ${m.createdAt || '-'}
+    </td>
+</tr>
+`).join('');
 
-<head>
-    <meta charset="utf-8" />
-    <title>Messages</title>
-</head>
+const body = `
+<div class="card card-shadow">
+    <div class="card-body">
 
-<body style="font-family:system-ui;padding:24px">
-    <p><a href="/dashboard">← Back</a></p>
-    <h2>Messages (last 200)</h2>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h5 class="mb-0">Messages</h5>
+                <div class="text-secondary small">
+                    Log pengiriman pesan (last 200 records).
+                </div>
+            </div>
 
-    <table border="1" cellpadding="8" cellspacing="0">
-        <tr>
-            <th>Device</th>
-            <th>To</th>
-            <th>Status</th>
-            <th>Text</th>
-            <th>Error</th>
-            <th>Time</th>
-        </tr>
-        <% messages.forEach(m=> { %>
-            <tr>
-                <td>
-                    <%= m.device_id %>
-                </td>
-                <td>
-                    <%= m.to_number %>
-                </td>
-                <td>
-                    <%= m.status %>
-                </td>
-                <td>
-                    <%= m.text %>
-                </td>
-                <td>
-                    <%= m.error || "-" %>
-                </td>
-                <td>
-                    <%= m.createdAt %>
-                </td>
-            </tr>
-            <% }) %>
-    </table>
-</body>
+            <div class="d-flex gap-2">
+                <a href="/dashboard" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>Back
+                </a>
+            </div>
+        </div>
 
-</html>
+        <div class="table-responsive">
+            <table class="table align-middle table-bordered">
+                <thead>
+                    <tr>
+                        <th>Device</th>
+                        <th>To</th>
+                        <th>Status</th>
+                        <th>Text</th>
+                        <th>Error</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows || `
+                        <tr>
+                            <td colspan="6" class="text-center text-secondary">
+                                No messages found
+                            </td>
+                        </tr>
+                    `}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="text-secondary small mt-2">
+            Tips: Jika banyak FAILED, cek koneksi device atau status session.
+        </div>
+    </div>
+</div>
+`;
+%>
+
+<%- include('layout', { title: 'Messages', active: 'messages', user, body }) %>
