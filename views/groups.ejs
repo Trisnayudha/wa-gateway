@@ -1,0 +1,134 @@
+<% const deviceOptions=(devices || []).map(d=>{
+    const id = String(d.id || "");
+    const name = String(d.name || id);
+    return `<option value="${id}">${name} (${id})</option>`;
+    }).join("");
+
+    const body = `
+
+    <div class="card card-shadow">
+        <div class="card-body">
+
+            <h5 class="mb-3">WhatsApp Groups</h5>
+
+            <div class="row g-2 mb-3">
+
+                <div class="col-md-6">
+                    <label class="form-label small">Device</label>
+                    <select id="g_device" class="form-select">
+                        ${deviceOptions || '<option value="">No READY device</option>'}
+                    </select>
+                </div>
+
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" onclick="loadGroups()">
+                        <i class="bi bi-arrow-repeat"></i> Load Groups
+                    </button>
+                </div>
+
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-outline-secondary w-100" onclick="clearGroups()">
+                        Clear
+                    </button>
+                </div>
+
+            </div>
+
+            <div id="groups_table"></div>
+
+        </div>
+    </div>
+
+    <script>
+
+        function clearGroups() {
+            document.getElementById('groups_table').innerHTML = '';
+        }
+
+        async function loadGroups() {
+
+            const device = document.getElementById('g_device').value;
+
+            if (!device) {
+                alert('Select device first');
+                return;
+            }
+
+            const container = document.getElementById('groups_table');
+            container.innerHTML = 'Loading groups...';
+
+            try {
+
+                const res = await fetch('/api/admin/devices/' + device + '/groups');
+                const data = await res.json();
+
+                if (!res.ok || !data.ok) {
+                    container.innerHTML = '<div class="text-danger">' + (data.message || 'Failed') + '</div>';
+                    return;
+                }
+
+                const groups = data.groups || [];
+
+                if (!groups.length) {
+                    container.innerHTML = '<div class="text-secondary">No groups found</div>';
+                    return;
+                }
+
+                let html = '<div class="table-responsive">';
+                html += '<table class="table table-sm table-bordered">';
+                html += '<thead>';
+                html += '<tr>';
+                html += '<th>Name</th>';
+                html += '<th>Participants</th>';
+                html += '<th>Group ID</th>';
+                html += '<th width="120">Action</th>';
+                html += '</tr>';
+                html += '</thead>';
+                html += '<tbody>';
+
+                groups.forEach(g => {
+
+                    html += '<tr>';
+
+                    html += '<td>' + (g.name || '-') + '</td>';
+                    html += '<td>' + (g.participants || '-') + '</td>';
+                    html += '<td><code>' + g.id + '</code></td>';
+
+                    html += '<td>';
+
+                    html += '<button class="btn btn-sm btn-outline-primary" onclick="copyGroup(\\''+g.id+'\\')">';
+                    html += 'Copy';
+                    html += '</button>';
+
+                    html += '</td>';
+
+                    html += '</tr>';
+
+                });
+
+                html += '</tbody></table></div>';
+
+                container.innerHTML = html;
+
+            } catch (e) {
+
+                container.innerHTML = '<div class="text-danger">Network error</div>';
+
+            }
+
+        }
+
+        function copyGroup(id) {
+
+            navigator.clipboard.writeText(id);
+
+            alert('Group ID copied');
+
+        }
+
+    </script>
+
+    `;
+    %>
+
+<%- include('layout', { title: 'Groups' , active: 'groups' , body }) %>

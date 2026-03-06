@@ -11,6 +11,14 @@ function genKey() {
     return "wg_" + crypto.randomBytes(24).toString("hex");
 }
 
+function normalizeGroupId(groupId) {
+    let g = String(groupId || "").trim();
+    if (!g) return g;
+
+    if (g.endsWith("@g.us")) return g;
+    return `${g}@g.us`;
+}
+
 /**
  * DEVICES
  */
@@ -170,6 +178,107 @@ router.delete("/api-keys/:id", async (req, res) => {
 
     await k.destroy();
     res.json({ ok: true });
+});
+
+/**
+ * GROUPS
+ */
+
+// GET /api/admin/devices/:id/groups
+router.get("/devices/:id/groups", async (req, res) => {
+    try {
+        const device = await Device.findByPk(req.params.id);
+        if (!device) {
+            return res.status(404).json({ ok: false, message: "Device not found" });
+        }
+
+        if (device.status !== "READY") {
+            return res.status(503).json({ ok: false, message: "Device not ready" });
+        }
+
+        const client = wa.getClient(req.params.id);
+        if (!client) {
+            return res.status(503).json({ ok: false, message: "Client not ready" });
+        }
+
+        const chats = await client.getChats();
+
+        const groups = chats
+            .filter((c) => c.isGroup)
+            .map((g) => ({
+                name: g.name,
+                id: g.id?._serialized || null,
+                participants: g.participants?.length ?? null,
+            }))
+            .filter((g) => !!g.id)
+            .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+
+        return res.json({
+            ok: true,
+            deviceId: req.params.id,
+            total: groups.length,
+            groups,
+        });
+    } catch (err) {
+        return res.status(500).json({
+            ok: false,
+            message: err.message || "Failed to fetch groups",
+        });
+    }
+});
+
+// GET /api/admin/devices/:id/groups/check?groupId=120363xxxx
+router.get("/devices/:id/groups/check", async (req, res) => {
+    try {
+        const { groupId } = req.query || {};
+        if (!groupId) {
+            return res.status(400).json({
+                ok: false,
+                message: "query required: groupId",
+            });
+        }
+
+        const device = await Device.findByPk(req.params.id);
+        if (!device) {
+            return res.status(404).json({ ok: false, message: "Device not found" });
+        }
+
+        if (device.status !== "READY") {
+            return res.status(503).json({ ok: false, message: "Device not ready" });
+        }
+
+        const client = wa.getClient(req.params.id);
+        if (!client) {
+            return res.status(503).json({ ok: false, message: "Client not ready" });
+        }
+
+        const gid = normalizeGroupId(groupId);
+
+        const chats = await client.getChats();
+        const grp = chats.find((c) => c.isGroup && c.id?._serialized === gid);
+
+        if (!grp) {
+            return res.status(404).json({
+                ok: false,
+                deviceId: req.params.id,
+                groupId: gid,
+                message: "Group not found on this device",
+            });
+        }
+
+        return res.json({
+            ok: true,
+            deviceId: req.params.id,
+            groupId: gid,
+            name: grp.name,
+            participants: grp.participants?.length ?? null,
+        });
+    } catch (err) {
+        return res.status(500).json({
+            ok: false,
+            message: err.message || "Failed to check group",
+        });
+    }
 });
 
 module.exports = router;
