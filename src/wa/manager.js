@@ -43,7 +43,16 @@ class WaManager {
 
         const client = new Client({
             authStrategy: new LocalAuth({ clientId: `device-${deviceId}` }),
-            // puppeteer: { headless: true }, // optional
+            puppeteer: {
+                headless: true,
+                args: [
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--no-zygote",
+                    "--disable-gpu",
+                ],
+            },
         });
 
         client.on("qr", async (qr) => {
@@ -56,7 +65,10 @@ class WaManager {
         });
 
         client.on("authenticated", async () => {
-            await Device.update({ last_event: "authenticated" }, { where: { id: deviceId } });
+            await Device.update(
+                { last_event: "authenticated" },
+                { where: { id: deviceId } }
+            );
         });
 
         client.on("ready", async () => {
@@ -68,6 +80,7 @@ class WaManager {
         });
 
         client.on("disconnected", async (reason) => {
+            this.qrMap.delete(deviceId);
             await Device.update(
                 { status: "DISCONNECTED", last_event: `disconnected:${reason}` },
                 { where: { id: deviceId } }
@@ -75,6 +88,7 @@ class WaManager {
         });
 
         client.on("auth_failure", async (msg) => {
+            this.qrMap.delete(deviceId);
             await Device.update(
                 { status: "DISCONNECTED", last_event: `auth_failure:${msg}` },
                 { where: { id: deviceId } }
