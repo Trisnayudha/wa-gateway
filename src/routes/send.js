@@ -24,16 +24,48 @@ function normalizeTo(to) {
     // already full jid
     if (t.includes("@c.us") || t.includes("@g.us")) return t;
 
+    // remove spaces, dashes, parentheses, etc
+    t = t.replace(/[^\d]/g, "");
+
     // detect group id (commonly starts with 120... and long)
     const looksLikeGroup = t.startsWith("120") && t.length >= 15;
-
     if (looksLikeGroup) return `${t}@g.us`;
 
-    // treat as phone number (expect 62xxxx etc)
-    // NOTE: do not auto-convert 08xxx here (your system may already store 62 format)
+    // normalize Indonesian phone number
+    if (t.startsWith("08")) {
+        t = "62" + t.slice(1); // 0838xxx -> 62838xxx
+    } else if (t.startsWith("8")) {
+        t = "62" + t; // 838xxx -> 62838xxx
+    } else if (t.startsWith("620")) {
+        t = "62" + t.slice(3); // antisipasi input aneh: 620838xxx -> 62838xxx
+    }
+
     return `${t}@c.us`;
 }
+function isValidWhatsAppTarget(to) {
+    const t = String(to || "").trim();
 
+    if (!t) return false;
+
+    if (t.includes("@g.us")) return true;
+    if (t.includes("@c.us")) {
+        const numberPart = t.replace("@c.us", "");
+        return /^62\d{8,15}$/.test(numberPart);
+    }
+
+    const digits = t.replace(/[^\d]/g, "");
+
+    // group id
+    if (digits.startsWith("120") && digits.length >= 15) return true;
+
+    // nomor indo yang diterima:
+    // 08xxxx, 8xxxx, 62xxxx
+    if (digits.startsWith("08")) return digits.length >= 10;
+    if (digits.startsWith("8")) return digits.length >= 9;
+    if (digits.startsWith("62")) return digits.length >= 10;
+
+    return false;
+}
 /**
  * Map low-level WA errors into friendly API messages
  */
@@ -72,8 +104,16 @@ function mapSendError(err, toNormalized) {
 
 router.post("/send", authApiKey, async (req, res) => {
     const { to, text } = req.body || {};
+
     if (!to || !text) {
         return res.status(400).json({ ok: false, message: "body required: {to, text}" });
+    }
+
+    if (!isValidWhatsAppTarget(to)) {
+        return res.status(400).json({
+            ok: false,
+            message: "Invalid destination format. Use Indonesian number format 08xxxx, 8xxxx, 62xxxx, or valid WhatsApp group id."
+        });
     }
 
     const device = await Device.findByPk(req.deviceId);
@@ -83,7 +123,6 @@ router.post("/send", authApiKey, async (req, res) => {
     const toNormalized = normalizeTo(to);
 
     try {
-        // IMPORTANT: kirim pakai toNormalized supaya group bisa (@g.us)
         const msg = await wa.sendText(req.deviceId, toNormalized, text);
 
         await Message.create({
@@ -111,7 +150,6 @@ router.post("/send", authApiKey, async (req, res) => {
             error: friendly,
         });
 
-        // 400 kalau input/tujuan invalid, 500 kalau error internal umum
         const isClientError =
             friendly.toLowerCase().includes("invalid phone") ||
             friendly.toLowerCase().includes("not registered") ||
