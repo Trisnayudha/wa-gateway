@@ -3,6 +3,7 @@ const rows = (keys || []).map(k => `
 <tr>
   <td class="fw-semibold">${k.label}</td>
   <td><code>${k.device_id}</code></td>
+  <td class="text-secondary small">${k.phone_number || '-'}</td>
   <td>
     ${k.is_active
       ? '<span class="badge text-bg-success">YES</span>'
@@ -45,13 +46,14 @@ const body = `
           <tr>
             <th>Label</th>
             <th>Device ID</th>
+            <th>No. HP</th>
             <th>Active</th>
             <th>Created</th>
             <th style="width:220px">Actions</th>
           </tr>
         </thead>
         <tbody>
-          ${rows || `<tr><td colspan="5" class="text-secondary">No API keys yet.</td></tr>`}
+          ${rows || `<tr><td colspan="6" class="text-secondary">No API keys yet.</td></tr>`}
         </tbody>
       </table>
     </div>
@@ -79,6 +81,11 @@ const body = `
         <div class="mb-2">
           <label class="form-label small">Label</label>
           <input id="ck_label" class="form-control" placeholder="Misal: Default / Production / Dashboard Test" />
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label small">No. HP <span class="text-secondary">(opsional)</span></label>
+          <input id="ck_phone" class="form-control" placeholder="Misal: 628123456789" />
         </div>
 
         <div id="ck_err" class="text-danger small mt-2" style="display:none;"></div>
@@ -126,6 +133,7 @@ const body = `
 
     const deviceId = (document.getElementById('ck_device').value || '').trim();
     const label = (document.getElementById('ck_label').value || '').trim();
+    const phone = (document.getElementById('ck_phone').value || '').trim();
 
     if (!deviceId) return showErr('Device is required');
     if (!label) return showErr('Label is required');
@@ -134,7 +142,7 @@ const body = `
       const res = await fetch('/api/admin/devices/' + encodeURIComponent(deviceId) + '/api-keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label })
+        body: JSON.stringify({ label, phone_number: phone || null })
       });
 
       const data = await res.json().catch(() => ({}));

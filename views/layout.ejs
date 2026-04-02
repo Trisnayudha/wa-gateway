@@ -104,9 +104,11 @@
         <a class="<%= active === 'messages' ? 'active' : '' %>" href="/messages">
           <i class="bi bi-envelope-paper"></i> Messages
         </a>
-        <a href="/groups" class="nav-link <%= active === 'groups' ? 'active' : '' %>">
-          <i class="bi bi-people"></i>
-          <span>Groups</span>
+        <a class="<%= active === 'groups' ? 'active' : '' %>" href="/groups">
+          <i class="bi bi-people"></i> Groups
+        </a>
+        <a class="<%= active === 'commands' ? 'active' : '' %>" href="/commands">
+          <i class="bi bi-terminal"></i> Commands
         </a>
         <a class="<%= active === 'docs' ? 'active' : '' %>" href="/docs" target="_blank">
           <i class="bi bi-journal-text"></i> API Docs

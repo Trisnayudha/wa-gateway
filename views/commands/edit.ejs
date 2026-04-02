@@ -1,0 +1,114 @@
+<%
+var wlNumbers = Array.isArray(cfg.whitelist_numbers) ? cfg.whitelist_numbers : [];
+var wlGroups  = Array.isArray(cfg.whitelist_groups)  ? cfg.whitelist_groups  : [];
+
+var flashHtml = '';
+if (flash && flash.message) {
+    flashHtml = '<div class="alert alert-' + flash.type + ' alert-dismissible fade show mb-3" role="alert">'
+              + flash.message
+              + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+}
+
+var scopeBadgeHtml = (function(s) {
+    if (s === 'group')   return '<span class="badge text-bg-primary">Grup</span>';
+    if (s === 'private') return '<span class="badge text-bg-warning text-dark">Private</span>';
+    return '<span class="badge text-bg-secondary">Both</span>';
+})(cmdMeta.scope || 'both');
+
+var adminBadgeHtml = cmdMeta.adminOnly
+    ? '<span class="badge text-bg-danger">Ya</span>'
+    : '<span class="badge text-bg-secondary">Tidak</span>';
+
+var aliasHtml = (cmdMeta.aliases || []).length > 0
+    ? cmdMeta.aliases.map(function(a){ return '!' + a; }).join(', ')
+    : '—';
+
+var breadcrumb = '<nav aria-label="breadcrumb"><ol class="breadcrumb mb-0">'
+    + '<li class="breadcrumb-item"><a href="/commands">Command Manager</a></li>'
+    + '<li class="breadcrumb-item"><a href="/commands/' + encodeURIComponent(device.id) + '">' + (device.name || device.id) + '</a></li>'
+    + '<li class="breadcrumb-item active">!' + cmdMeta.name + '</li>'
+    + '</ol></nav>';
+
+var enabledChecked = cfg.enabled ? 'checked' : '';
+var enabledLabel   = cfg.enabled ? '&#x2705; Aktif' : '&#x1F515; Nonaktif';
+var cooldownVal    = cfg.cooldown_seconds || 0;
+var formAction     = '/commands/' + encodeURIComponent(device.id) + '/' + cmdMeta.name + '/edit';
+var backUrl        = '/commands/' + encodeURIComponent(device.id);
+
+var infoCard = '<div class="col-lg-4">'
+    + '<div class="card card-shadow">'
+    + '<div class="card-body">'
+    + '<h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-1 text-primary"></i>Info Command</h6>'
+    + '<table class="table table-sm table-borderless mb-0 small">'
+    + '<tr><td class="text-secondary" style="width:90px">Nama</td><td class="fw-semibold">!' + cmdMeta.name + '</td></tr>'
+    + '<tr><td class="text-secondary">Alias</td><td>' + aliasHtml + '</td></tr>'
+    + '<tr><td class="text-secondary">Scope</td><td>' + scopeBadgeHtml + '</td></tr>'
+    + '<tr><td class="text-secondary">Admin Only</td><td>' + adminBadgeHtml + '</td></tr>'
+    + '<tr><td class="text-secondary">Device</td><td>' + (device.name || device.id) + '</td></tr>'
+    + '<tr><td class="text-secondary">Deskripsi</td><td class="text-secondary">' + (cmdMeta.description || '—') + '</td></tr>'
+    + '</table>'
+    + '</div></div></div>';
+
+var formCard = '<div class="col-lg-8">'
+    + '<form method="POST" action="' + formAction + '">'
+    + '<div class="card card-shadow">'
+    + '<div class="card-body">'
+    + '<h6 class="fw-bold mb-3"><i class="bi bi-gear me-1 text-primary"></i>Konfigurasi</h6>'
+
+    + '<div class="mb-4">'
+    + '<label class="form-label fw-semibold small">Status Command</label>'
+    + '<div class="form-check form-switch">'
+    + '<input class="form-check-input" type="checkbox" name="enabled" value="1" id="enabledToggle" ' + enabledChecked + '>'
+    + '<label class="form-check-label" for="enabledToggle"><span id="enabledLabel">' + enabledLabel + '</span></label>'
+    + '</div>'
+    + '<div class="text-secondary small mt-1">Jika nonaktif, bot akan menolak command ini.</div>'
+    + '</div>'
+    + '<hr />'
+
+    + '<div class="mb-4">'
+    + '<label class="form-label fw-semibold small">Cooldown (detik)</label>'
+    + '<div class="input-group" style="max-width:200px">'
+    + '<input type="number" class="form-control" name="cooldown_seconds" value="' + cooldownVal + '" min="0" max="3600">'
+    + '<span class="input-group-text">detik</span>'
+    + '</div>'
+    + '<div class="text-secondary small mt-1">0 = tidak ada cooldown. Berlaku per pengirim.</div>'
+    + '</div>'
+    + '<hr />'
+
+    + '<div class="mb-4">'
+    + '<div class="d-flex justify-content-between align-items-center mb-1">'
+    + '<label class="form-label fw-semibold small mb-0">Whitelist Nomor <span class="badge text-bg-secondary ms-1">' + wlNumbers.length + '</span></label>'
+    + '<button type="button" class="btn btn-outline-secondary btn-sm" onclick="document.getElementById(\'wl_numbers\').value=\'\'">Clear</button>'
+    + '</div>'
+    + '<textarea class="form-control font-monospace" name="whitelist_numbers_raw" id="wl_numbers" rows="4"'
+    + ' placeholder="628121234567">' + wlNumbers.join('\n') + '</textarea>'
+    + '<div class="text-secondary small mt-1">Kosongkan = semua nomor boleh. Format <code>628xxx</code>, satu per baris.</div>'
+    + '</div>'
+
+    + '<div class="mb-2">'
+    + '<div class="d-flex justify-content-between align-items-center mb-1">'
+    + '<label class="form-label fw-semibold small mb-0">Whitelist Grup <span class="badge text-bg-secondary ms-1">' + wlGroups.length + '</span></label>'
+    + '<button type="button" class="btn btn-outline-secondary btn-sm" onclick="document.getElementById(\'wl_groups\').value=\'\'">Clear</button>'
+    + '</div>'
+    + '<textarea class="form-control font-monospace" name="whitelist_groups_raw" id="wl_groups" rows="4"'
+    + ' placeholder="120363xxxxxxxx@g.us">' + wlGroups.join('\n') + '</textarea>'
+    + '<div class="text-secondary small mt-1">Kosongkan = semua grup boleh. Format <code>120xxx@g.us</code>.</div>'
+    + '</div>'
+    + '</div>'
+
+    + '<div class="card-footer bg-transparent d-flex gap-2 justify-content-end">'
+    + '<a href="' + backUrl + '" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Batal</a>'
+    + '<button type="submit" class="btn btn-primary"><i class="bi bi-floppy me-1"></i> Simpan</button>'
+    + '</div>'
+    + '</div></form></div>';
+
+var body = flashHtml
+    + '<div class="mb-3">' + breadcrumb + '</div>'
+    + '<div class="row g-3">' + infoCard + formCard + '</div>'
+    + '<script>'
+    + 'document.getElementById("enabledToggle").addEventListener("change",function(){'
+    + 'document.getElementById("enabledLabel").innerHTML=this.checked?"&#x2705; Aktif":"&#x1F515; Nonaktif";'
+    + '});'
+    + '<\/script>';
+%>
+<%- include('../layout', { title: title, active: 'commands', user: user, body: body }) %>

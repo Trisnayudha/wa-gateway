@@ -1,0 +1,48 @@
+<%
+var countMap_ = countMap || {};
+var flashHtml = '';
+if (flash && flash.message) {
+    flashHtml = '<div class="alert alert-' + flash.type + ' alert-dismissible fade show mb-3" role="alert">'
+              + flash.message
+              + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+}
+
+var rows = (devices || []).map(function(device) {
+    var count   = countMap_[String(device.id)] || 0;
+    var isReady = device.status === 'READY';
+    var badge   = isReady
+        ? '<span class="badge text-bg-success">READY</span>'
+        : (device.status === 'CONNECTING'
+            ? '<span class="badge text-bg-warning">CONNECTING</span>'
+            : '<span class="badge text-bg-secondary">DISCONNECTED</span>');
+
+    return '<tr>'
+        + '<td><div class="fw-semibold">' + (device.name || device.id) + '</div>'
+        + '<div class="text-secondary small"><code>' + device.id + '</code></div></td>'
+        + '<td>' + badge + '</td>'
+        + '<td><span class="badge text-bg-light text-dark border">'
+        + '<i class="bi bi-terminal me-1"></i>' + count + ' dikonfigurasi</span></td>'
+        + '<td><a href="/commands/' + encodeURIComponent(device.id) + '" class="btn btn-primary btn-sm">'
+        + '<i class="bi bi-gear me-1"></i> Kelola Commands</a></td>'
+        + '</tr>';
+}).join('');
+
+var emptyRow = '<tr><td colspan="4" class="text-center text-secondary py-4">'
+    + '<i class="bi bi-phone-slash d-block fs-2 mb-2 opacity-50"></i>'
+    + 'Belum ada device. <a href="/devices">Tambah device</a> terlebih dahulu.'
+    + '</td></tr>';
+
+var body = flashHtml
+    + '<div class="card card-shadow">'
+    + '<div class="card-body">'
+    + '<div class="d-flex justify-content-between align-items-center mb-3">'
+    + '<div><h5 class="mb-0">Command Manager</h5>'
+    + '<div class="text-secondary small">Kelola akses, whitelist, dan cooldown command per device.</div>'
+    + '</div></div>'
+    + '<div class="table-responsive">'
+    + '<table class="table align-middle">'
+    + '<thead><tr><th>Device</th><th>Status</th><th>Konfigurasi</th><th>Aksi</th></tr></thead>'
+    + '<tbody>' + (rows.length > 0 ? rows : emptyRow) + '</tbody>'
+    + '</table></div></div></div>';
+%>
+<%- include('../layout', { title: 'Command Manager', active: 'commands', user: user, body: body }) %>

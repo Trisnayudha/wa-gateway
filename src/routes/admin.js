@@ -58,6 +58,19 @@ router.patch("/devices/:id", async (req, res) => {
     res.json({ ok: true, device });
 });
 
+// DELETE /api/admin/devices/:id
+router.delete("/devices/:id", async (req, res) => {
+    const device = await Device.findByPk(req.params.id);
+    if (!device) return res.status(404).json({ ok: false, message: "Device not found" });
+
+    if (device.status !== "DISCONNECTED") {
+        return res.status(400).json({ ok: false, message: "Hanya device DISCONNECTED yang bisa dihapus." });
+    }
+
+    await device.destroy();
+    res.json({ ok: true });
+});
+
 // POST /api/admin/devices/:id/restart
 router.post("/devices/:id/restart", async (req, res) => {
     const device = await Device.findByPk(req.params.id);
@@ -114,7 +127,7 @@ router.get("/devices/:id/api-keys", async (req, res) => {
 // POST /api/admin/devices/:id/api-keys { label }
 router.post("/devices/:id/api-keys", async (req, res) => {
     const device_id = req.params.id;
-    const { label } = req.body || {};
+    const { label, phone_number } = req.body || {};
     if (!label || !String(label).trim()) {
         return res.status(400).json({ ok: false, message: "label required" });
     }
@@ -131,7 +144,8 @@ router.post("/devices/:id/api-keys", async (req, res) => {
         device_id,
         label: String(label).trim(),
         key_hash: hash,
-        api_key_plain: plain, // kalau memang kamu simpan
+        api_key_plain: plain,
+        phone_number: phone_number ? String(phone_number).trim() : null,
         is_active: true,
     });
 

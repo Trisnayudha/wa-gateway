@@ -28,6 +28,8 @@
                 <button class="btn btn-outline-danger btn-sm" onclick='restartDevice("${d.id}")'>
                     <i class="bi bi-arrow-clockwise me-1"></i>Restart
                 </button>
+
+                ${d.status === 'DISCONNECTED' ? '<button class="btn btn-danger btn-sm" data-del-id="' + d.id + '"><i class="bi bi-trash me-1"></i>Hapus</button>' : ''}
             </div>
 
             <div class="text-secondary small mt-2">
@@ -297,8 +299,31 @@
                 alert('Network error when restarting device');
             }
         }
+
+        async function deleteDevice(id) {
+            if (!confirm('Hapus device ini? Semua API key terkait juga akan terhapus.')) return;
+
+            try {
+                const res = await fetch('/api/admin/devices/' + encodeURIComponent(id), { method: 'DELETE' });
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok || !data.ok) {
+                    alert(data.message || 'Gagal menghapus device');
+                    return;
+                }
+
+                window.location.reload();
+            } catch (e) {
+                alert('Network error when deleting device');
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('[data-del-id]');
+            if (btn) deleteDevice(btn.dataset.delId);
+        });
     </script>
     `;
     %>
 
-    <%- include('layout', { title: 'Devices' , active: 'devices' , user, body }) %>
+<%- include('layout', { title: 'Devices' , active: 'devices' , user, body }) %>

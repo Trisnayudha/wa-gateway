@@ -43,12 +43,16 @@ router.get("/api-keys", requireLogin, async (req, res) => {
 });
 
 router.get("/messages", requireLogin, async (req, res) => {
-    const messages = await Message.findAll({
-        order: [["createdAt", "DESC"]],
-        limit: 200
-    });
-
-    res.render("messages", { user: req.session.user, messages });
+    try {
+        const messages = await Message.findAll({
+            order: [["createdAt", "DESC"]],
+            limit: 200
+        });
+        res.render("messages", { user: req.session.user, messages });
+    } catch (err) {
+        console.error("[messages] findAll error:", err.message, "\nSQL:", err.sql);
+        res.status(500).send("DB error: " + err.message);
+    }
 });
 
 router.get("/groups", requireLogin, async (req, res) => {

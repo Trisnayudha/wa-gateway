@@ -1,0 +1,107 @@
+<%
+var flashHtml = '';
+if (flash && flash.message) {
+    flashHtml = '<div class="alert alert-' + flash.type + ' alert-dismissible fade show mb-3" role="alert">'
+              + flash.message
+              + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+}
+
+function scopeBadge(s) {
+    if (s === 'group')   return '<span class="badge text-bg-primary">Grup</span>';
+    if (s === 'private') return '<span class="badge text-bg-warning text-dark">Private</span>';
+    return '<span class="badge text-bg-secondary">Both</span>';
+}
+
+var cmdRows = (rows || []).map(function(row) {
+    var wlN = (row.whitelist_numbers || []).length;
+    var wlG = (row.whitelist_groups  || []).length;
+
+    var wlBadge = (wlN + wlG) === 0
+        ? '<span class="text-secondary small">Semua</span>'
+        : '<span class="badge text-bg-warning text-dark">' + wlN + ' nomor, ' + wlG + ' grup</span>';
+
+    var cdBadge = row.cooldown_seconds > 0
+        ? '<span class="badge text-bg-info">' + row.cooldown_seconds + 's</span>'
+        : '<span class="text-secondary small">—</span>';
+
+    var adminBadge = row.adminOnly
+        ? '<span class="badge text-bg-danger" style="font-size:.65rem">Admin Only</span>'
+        : '';
+
+    var checked = row.enabled ? 'checked' : '';
+
+    return '<tr id="row-' + row.name + '">'
+        + '<td class="ps-3"><div class="fw-semibold">!' + row.name + '</div>' + adminBadge + '</td>'
+        + '<td class="text-secondary small" style="max-width:200px">' + row.description + '</td>'
+        + '<td>' + scopeBadge(row.scope) + '</td>'
+        + '<td>' + cdBadge + '</td>'
+        + '<td>' + wlBadge + '</td>'
+        + '<td><div class="form-check form-switch mb-0">'
+        + '<input class="form-check-input toggle-cmd" type="checkbox"'
+        + ' data-device="' + device.id + '"'
+        + ' data-cmd="' + row.name + '"'
+        + ' ' + checked + ' style="cursor:pointer" />'
+        + '</div></td>'
+        + '<td class="pe-3">'
+        + '<a href="/commands/' + encodeURIComponent(device.id) + '/' + row.name + '/edit"'
+        + ' class="btn btn-outline-primary btn-sm">'
+        + '<i class="bi bi-pencil"></i> Edit</a>'
+        + '</td></tr>';
+}).join('');
+
+var emptyRow = '<tr><td colspan="7" class="text-center text-secondary py-4">Tidak ada command tersedia.</td></tr>';
+
+var breadcrumb = '<nav aria-label="breadcrumb"><ol class="breadcrumb mb-0">'
+    + '<li class="breadcrumb-item"><a href="/commands">Command Manager</a></li>'
+    + '<li class="breadcrumb-item active">' + (device.name || device.id) + '</li>'
+    + '</ol></nav>';
+
+var toastScript = '<div id="toast-container" class="position-fixed bottom-0 end-0 p-3" style="z-index:1100"></div>'
+    + '<script>'
+    + 'function showToast(msg,type){'
+    + 'var id="toast_"+Date.now();'
+    + 'var el=document.createElement("div");'
+    + 'el.id=id;'
+    + 'el.className="toast align-items-center "+(type==="success"?"text-bg-success":"text-bg-danger")+" border-0 show";'
+    + 'el.setAttribute("role","alert");'
+    + 'el.innerHTML="<div class=\\"d-flex\\"><div class=\\"toast-body\\">"+msg+"</div>'
+    + '<button type=\\"button\\" class=\\"btn-close btn-close-white me-2 m-auto\\" data-bs-dismiss=\\"toast\\"></button></div>";'
+    + 'document.getElementById("toast-container").appendChild(el);'
+    + 'setTimeout(function(){el.remove();},3500);}'
+    + 'document.querySelectorAll(".toggle-cmd").forEach(function(el){'
+    + 'el.addEventListener("change",async function(){'
+    + 'var dId=this.dataset.device,cmd=this.dataset.cmd,prev=!this.checked,self=this;'
+    + 'try{'
+    + 'var res=await fetch("/commands/"+encodeURIComponent(dId)+"/"+cmd+"/toggle",'
+    + '{method:"POST",headers:{"X-Requested-With":"XMLHttpRequest"}});'
+    + 'var data=await res.json().catch(function(){return{};});'
+    + 'if(!data.ok)throw new Error(data.message||"Gagal toggle");'
+    + 'self.checked=data.enabled;'
+    + 'showToast("!"+cmd+" "+(data.enabled?"diaktifkan":"dinonaktifkan"),"success");'
+    + '}catch(err){self.checked=prev;showToast("Gagal: "+err.message,"danger");}'
+    + '});});'
+    + '<\/script>';
+
+var body = flashHtml
+    + '<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">'
+    + '<div>' + breadcrumb
+    + '<div class="text-secondary small mt-1">Toggle on/off, atau klik Edit untuk whitelist &amp; cooldown.</div>'
+    + '</div>'
+    + '<form method="POST" action="/commands/' + encodeURIComponent(device.id) + '/reset-all"'
+    + ' onsubmit="return confirm(\'Reset semua config ke default?\')">'
+    + '<button class="btn btn-outline-danger btn-sm">'
+    + '<i class="bi bi-arrow-counterclockwise me-1"></i> Reset Semua</button></form>'
+    + '</div>'
+    + '<div class="card card-shadow">'
+    + '<div class="card-body p-0">'
+    + '<div class="table-responsive">'
+    + '<table class="table table-hover mb-0 align-middle">'
+    + '<thead class="table-light"><tr>'
+    + '<th class="ps-3">Command</th><th>Deskripsi</th><th>Scope</th>'
+    + '<th>Cooldown</th><th>Whitelist</th><th>Status</th><th class="pe-3">Aksi</th>'
+    + '</tr></thead>'
+    + '<tbody>' + (cmdRows.length > 0 ? cmdRows : emptyRow) + '</tbody>'
+    + '</table></div></div></div>'
+    + toastScript;
+%>
+<%- include('../layout', { title: title, active: 'commands', user: user, body: body }) %>
