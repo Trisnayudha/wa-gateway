@@ -14,6 +14,7 @@ const adminRoutes = require("./src/routes/admin");
 const sendRoutes = require("./src/routes/send");
 const docsRoutes = require("./src/routes/docs");
 const commandRoutes = require("./src/routes/commands"); // ✅ TAMBAHAN
+const settingsRoutes = require("./src/routes/settings");
 const requireLogin = require("./src/middleware/requireLogin");
 const expressLayouts = require("express-ejs-layouts");
 
@@ -55,6 +56,7 @@ app.get("/", (req, res) => {
 app.use("/", authRoutes);
 app.use("/", webRoutes);
 app.use("/", commandRoutes);              // ✅ TAMBAHAN
+app.use("/", settingsRoutes);
 app.use("/api/admin", requireLogin, adminRoutes);
 app.use("/docs", docsRoutes);
 

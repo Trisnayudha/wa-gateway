@@ -41,6 +41,13 @@ const Message = sequelize.define("Message", {
     message_id: { type: DataTypes.STRING, allowNull: true },
 }, { tableName: "messages", underscored: true });
 
+// ===== APP SETTINGS (key-value) =====
+const AppSetting = sequelize.define("AppSetting", {
+    key: { type: DataTypes.STRING, primaryKey: true },
+    value: { type: DataTypes.TEXT, allowNull: true },
+    description: { type: DataTypes.STRING, allowNull: true },
+}, { tableName: "app_settings", underscored: true });
+
 // ===== COMMAND CONFIG =====
 const CommandConfig = sequelize.define("CommandConfig", {
     id: {
@@ -105,4 +112,4 @@ Message.belongsTo(Device, { foreignKey: "device_id" });
 Device.hasMany(CommandConfig, { foreignKey: "device_id", constraints: false });
 CommandConfig.belongsTo(Device, { foreignKey: "device_id", constraints: false });
 
-module.exports = { sequelize, User, Device, ApiKey, Message, CommandConfig };
+module.exports = { sequelize, User, Device, ApiKey, Message, CommandConfig, AppSetting };

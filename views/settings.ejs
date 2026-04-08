@@ -1,0 +1,70 @@
+<%
+const escapeHtml = (s) => String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const flashHtml = flash
+    ? `<div class="alert alert-${flash.type === 'danger' ? 'danger' : 'success'} alert-dismissible fade show" role="alert">
+         ${escapeHtml(flash.message)}
+         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+       </div>`
+    : '';
+
+const fields = (settings || []).map((s) => {
+    const inputType = s.type === 'number' ? 'number'
+        : s.type === 'date' ? 'date'
+        : 'text';
+    return `
+    <div class="mb-4">
+        <label class="form-label fw-semibold" for="f_${escapeHtml(s.key)}">
+            ${escapeHtml(s.key)}
+            ${s.isCustom
+                ? '<span class="badge text-bg-info ms-1">custom</span>'
+                : '<span class="badge text-bg-secondary ms-1">default</span>'}
+        </label>
+        <input
+            type="${inputType}"
+            class="form-control"
+            id="f_${escapeHtml(s.key)}"
+            name="${escapeHtml(s.key)}"
+            value="${escapeHtml(s.value)}"
+        />
+        <div class="form-text">
+            ${escapeHtml(s.description || '')}
+            <span class="text-secondary"> · default: <code>${escapeHtml(s.defaultValue)}</code></span>
+        </div>
+    </div>
+    `;
+}).join('');
+
+const body = `
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h5 class="mb-0">App Settings</h5>
+        <div class="text-secondary small">Konfigurasi yang dipakai oleh command bot. Perubahan berlaku dalam <30 detik.</div>
+    </div>
+</div>
+
+${flashHtml}
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <form method="POST" action="/settings">
+            ${fields || '<div class="text-secondary">Belum ada setting yang terdaftar.</div>'}
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save me-1"></i> Simpan
+                </button>
+                <a href="/settings" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+`;
+%>
+
+<%- include('layout', { title: 'App Settings', active: 'settings', user, body }) %>

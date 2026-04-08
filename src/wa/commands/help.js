@@ -53,8 +53,27 @@ module.exports = {
         const allScope = commands.filter((c) => !c.scope || c.scope === "both");
 
         if (allScope.length > 0) {
-            text += `\n📌 *Umum (Grup & Private)*\n`;
-            text += allScope.map(formatCmd).join("\n");
+            text += `\n📌 *Umum (Grup & Private)*`;
+
+            // Grup berdasarkan category. Yang tanpa category masuk ke "Umum".
+            const byCategory = {};
+            for (const c of allScope) {
+                const cat = c.category || "Umum";
+                if (!byCategory[cat]) byCategory[cat] = [];
+                byCategory[cat].push(c);
+            }
+
+            // "Umum" duluan, sisanya alfabetis
+            const catNames = Object.keys(byCategory).sort((a, b) => {
+                if (a === "Umum") return -1;
+                if (b === "Umum") return 1;
+                return a.localeCompare(b);
+            });
+
+            for (const cat of catNames) {
+                text += `\n  _${cat}_\n`;
+                text += byCategory[cat].map(formatCmd).join("\n");
+            }
         }
 
         if (groupOnly.length > 0) {
