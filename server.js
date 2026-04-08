@@ -45,6 +45,7 @@ app.use(
 );
 store.sync();
 
+app.use("/api", sendRoutes);
 // ✅ root redirect
 app.get("/", (req, res) => {
     if (!req.session?.user) return res.redirect("/login");
@@ -55,7 +56,6 @@ app.use("/", authRoutes);
 app.use("/", webRoutes);
 app.use("/", commandRoutes);              // ✅ TAMBAHAN
 app.use("/api/admin", requireLogin, adminRoutes);
-app.use("/api", sendRoutes);
 app.use("/docs", docsRoutes);
 
 (async () => {

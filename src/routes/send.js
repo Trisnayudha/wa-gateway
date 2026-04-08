@@ -127,10 +127,11 @@ router.post("/send", authApiKey, async (req, res) => {
 
         await Message.create({
             device_id: req.deviceId,
-            to_number: String(toNormalized),
+            to: String(toNormalized),
             text: String(text),
-            status: "SENT",
+            status: "sent",
             error: null,
+            message_id: msg?.id?._serialized || null,
         });
 
         return res.json({
@@ -144,9 +145,9 @@ router.post("/send", authApiKey, async (req, res) => {
 
         await Message.create({
             device_id: req.deviceId,
-            to_number: String(toNormalized),
+            to: String(toNormalized),
             text: String(text),
-            status: "FAILED",
+            status: "failed",
             error: friendly,
         });
 
