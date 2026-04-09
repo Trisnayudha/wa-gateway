@@ -102,6 +102,26 @@ const CommandConfig = sequelize.define("CommandConfig", {
     indexes: [{ unique: true, fields: ["device_id", "command_name"] }],
 });
 
+// ===== EVENT SCHEDULERS =====
+const EventScheduler = sequelize.define("EventScheduler", {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    name: { type: DataTypes.STRING, allowNull: false },
+    device_id: { type: DataTypes.UUID, allowNull: false },
+    event_id: { type: DataTypes.STRING, allowNull: false },
+    group_id: { type: DataTypes.STRING, allowNull: false },
+    cron_expression: { type: DataTypes.STRING, allowNull: false },
+    timezone: { type: DataTypes.STRING, defaultValue: "Asia/Jakarta" },
+    api_url: {
+        type: DataTypes.STRING,
+        defaultValue: "https://membership.djakarta-miningclub.com/api/summary-attandance",
+    },
+    scheduler_type: {
+        type: DataTypes.ENUM("checkin", "registration"),
+        defaultValue: "checkin",
+    },
+    is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
+}, { tableName: "event_schedulers", underscored: true });
+
 // ===== ASSOCIATIONS =====
 Device.hasMany(ApiKey, { foreignKey: "device_id" });
 ApiKey.belongsTo(Device, { foreignKey: "device_id" });
@@ -112,4 +132,7 @@ Message.belongsTo(Device, { foreignKey: "device_id" });
 Device.hasMany(CommandConfig, { foreignKey: "device_id", constraints: false });
 CommandConfig.belongsTo(Device, { foreignKey: "device_id", constraints: false });
 
-module.exports = { sequelize, User, Device, ApiKey, Message, CommandConfig, AppSetting };
+Device.hasMany(EventScheduler, { foreignKey: "device_id", constraints: false });
+EventScheduler.belongsTo(Device, { foreignKey: "device_id", constraints: false });
+
+module.exports = { sequelize, User, Device, ApiKey, Message, CommandConfig, AppSetting, EventScheduler };

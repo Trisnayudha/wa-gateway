@@ -15,6 +15,8 @@ const sendRoutes = require("./src/routes/send");
 const docsRoutes = require("./src/routes/docs");
 const commandRoutes = require("./src/routes/commands"); // ✅ TAMBAHAN
 const settingsRoutes = require("./src/routes/settings");
+const schedulerRoutes = require("./src/routes/schedulers");
+const schedulerService = require("./src/wa/schedulerService");
 const requireLogin = require("./src/middleware/requireLogin");
 const expressLayouts = require("express-ejs-layouts");
 
@@ -57,6 +59,7 @@ app.use("/", authRoutes);
 app.use("/", webRoutes);
 app.use("/", commandRoutes);              // ✅ TAMBAHAN
 app.use("/", settingsRoutes);
+app.use("/", schedulerRoutes);
 app.use("/api/admin", requireLogin, adminRoutes);
 app.use("/docs", docsRoutes);
 
@@ -66,6 +69,7 @@ app.use("/docs", docsRoutes);
         await sequelize.sync({ alter: true }); // alter:true untuk sync kolom baru
 
         await wa.initFromDb();
+        await schedulerService.init(wa);
 
         const PORT = process.env.PORT || 3100;
         server = app.listen(PORT, () =>

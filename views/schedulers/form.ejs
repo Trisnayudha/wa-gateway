@@ -1,0 +1,152 @@
+<%
+var isEdit = !!(scheduler);
+var action = isEdit ? '/schedulers/' + scheduler.id + '/edit' : '/schedulers';
+
+var flashHtml = '';
+if (flash && flash.message) {
+    flashHtml = '<div class="alert alert-' + flash.type + ' alert-dismissible fade show mb-3" role="alert">'
+              + flash.message
+              + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+}
+
+var v = scheduler || {};
+
+// Scheduler type options
+var typeOptions = [
+    { val: 'checkin',      label: 'Check-in Summary',     desc: 'Ringkasan peserta yang sudah hadir (check-in)' },
+    { val: 'registration', label: 'Registration Report',  desc: 'Laporan registrasi per paket (Member, Non-Member, Sponsor, Complimentary)' },
+].map(function(t) {
+    var sel = (v.scheduler_type || 'checkin') === t.val ? ' selected' : '';
+    return '<option value="' + t.val + '"' + sel + '>' + t.label + ' — ' + t.desc + '</option>';
+}).join('');
+
+// Device options
+var deviceOptions = (devices || []).map(function(d) {
+    var sel = isEdit && v.device_id === d.id ? ' selected' : '';
+    return '<option value="' + d.id + '"' + sel + '>' + d.name + ' (' + d.status + ')</option>';
+}).join('');
+
+// Breadcrumb
+var breadcrumb = '<nav aria-label="breadcrumb"><ol class="breadcrumb mb-0">'
+    + '<li class="breadcrumb-item"><a href="/schedulers">Event Schedulers</a></li>'
+    + '<li class="breadcrumb-item active">' + (isEdit ? (v.name || 'Edit') : 'Buat Baru') + '</li>'
+    + '</ol></nav>';
+
+// Cron hint table
+var cronHints = '<div class="card card-shadow mt-3" style="max-width:700px">'
+    + '<div class="card-body">'
+    + '<h6 class="fw-bold mb-2"><i class="bi bi-info-circle me-1 text-primary"></i>Contoh Cron Expression</h6>'
+    + '<table class="table table-sm mb-0">'
+    + '<thead class="table-light"><tr><th>Expression</th><th>Artinya</th></tr></thead>'
+    + '<tbody>'
+    + '<tr><td><code>*/15 15-18 12 2 *</code></td><td>Setiap 15 menit, jam 15-18, tgl 12 Feb</td></tr>'
+    + '<tr><td><code>0 * * * *</code></td><td>Setiap jam tepat</td></tr>'
+    + '<tr><td><code>*/30 8-17 * * 1-5</code></td><td>Setiap 30 menit jam 08-17, Senin-Jumat</td></tr>'
+    + '<tr><td><code>0 8 * * *</code></td><td>Setiap hari jam 08:00</td></tr>'
+    + '</tbody></table>'
+    + '</div></div>';
+
+var isActiveChecked = (!isEdit || v.is_active) ? 'checked' : '';
+
+var formCard = '<div class="card card-shadow" style="max-width:700px">'
+    + '<div class="card-body">'
+    + '<form method="POST" action="' + action + '">'
+
+    + '<div class="mb-3">'
+    + '<label class="form-label fw-semibold small">Tipe Scheduler</label>'
+    + '<select name="scheduler_type" class="form-select" id="schedulerTypeSelect" required>'
+    + typeOptions
+    + '</select>'
+    + '<div class="form-text">Menentukan format pesan yang dikirim ke grup.</div>'
+    + '</div>'
+
+    + '<div class="mb-3">'
+    + '<label class="form-label fw-semibold small">Nama Scheduler</label>'
+    + '<input type="text" name="name" class="form-control"'
+    + ' placeholder="misal: DMC Check-in Summary Event 2026"'
+    + ' value="' + (v.name || '') + '" required>'
+    + '<div class="form-text">Label deskriptif, muncul di header pesan WA.</div>'
+    + '</div>'
+
+    + '<div class="mb-3">'
+    + '<label class="form-label fw-semibold small">Bot / Device</label>'
+    + '<select name="device_id" class="form-select" required>'
+    + '<option value="">-- Pilih device --</option>'
+    + deviceOptions
+    + '</select>'
+    + '<div class="form-text">Bot WA yang mengirim pesan ke grup.</div>'
+    + '</div>'
+
+    + '<div class="mb-3">'
+    + '<label class="form-label fw-semibold small">Event ID</label>'
+    + '<input type="text" name="event_id" class="form-control"'
+    + ' placeholder="misal: 55"'
+    + ' value="' + (v.event_id || '') + '" required>'
+    + '<div class="form-text">ID event yang dikirim ke API untuk filter data check-in.</div>'
+    + '</div>'
+
+    + '<div class="mb-3">'
+    + '<label class="form-label fw-semibold small">Target Group ID</label>'
+    + '<input type="text" name="group_id" class="form-control"'
+    + ' placeholder="120363xxxxxxxx@g.us atau 120363xxxxxxxx"'
+    + ' value="' + (v.group_id || '') + '" required>'
+    + '<div class="form-text">Chat ID grup tujuan. Cek di menu <a href="/groups">Groups</a>.</div>'
+    + '</div>'
+
+    + '<div class="mb-3">'
+    + '<label class="form-label fw-semibold small">Cron Expression</label>'
+    + '<input type="text" name="cron_expression" class="form-control font-monospace"'
+    + ' placeholder="*/15 15-18 12 2 *"'
+    + ' value="' + (v.cron_expression || '') + '" required>'
+    + '<div class="form-text">Format: <code>menit jam tanggal bulan hari</code>'
+    + ' &mdash; <a href="https://crontab.guru" target="_blank">crontab.guru</a></div>'
+    + '</div>'
+
+    + '<div class="mb-3">'
+    + '<label class="form-label fw-semibold small">Timezone</label>'
+    + '<input type="text" name="timezone" class="form-control"'
+    + ' placeholder="Asia/Jakarta"'
+    + ' value="' + (v.timezone || 'Asia/Jakarta') + '">'
+    + '<div class="form-text">IANA timezone, contoh: <code>Asia/Jakarta</code>, <code>UTC</code>.</div>'
+    + '</div>'
+
+    + '<div class="mb-4">'
+    + '<label class="form-label fw-semibold small">API URL</label>'
+    + '<input type="text" name="api_url" class="form-control"'
+    + ' value="' + (v.api_url || defaultApiUrls[v.scheduler_type || 'checkin']) + '" id="apiUrlInput">'
+    + '<div class="form-text">URL di-update otomatis saat ganti Tipe Scheduler. Ubah manual jika perlu.</div>'
+    + '</div>'
+
+    + '<hr>'
+    + '<div class="mb-4">'
+    + '<div class="form-check form-switch">'
+    + '<input class="form-check-input" type="checkbox" name="is_active" value="1" id="isActive" ' + isActiveChecked + '>'
+    + '<label class="form-check-label fw-semibold" for="isActive">Aktifkan scheduler</label>'
+    + '</div>'
+    + '<div class="form-text">Jika tidak aktif, scheduler disimpan tapi tidak berjalan.</div>'
+    + '</div>'
+
+    + '<div class="d-flex gap-2">'
+    + '<button type="submit" class="btn btn-primary"><i class="bi bi-floppy me-1"></i>'
+    + (isEdit ? 'Simpan Perubahan' : 'Buat Scheduler')
+    + '</button>'
+    + '<a href="/schedulers" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Batal</a>'
+    + '</div>'
+    + '</form>'
+    + '</div></div>'
+    + '<script>'
+    + 'var API_URLS={"checkin":"' + defaultApiUrls.checkin + '","registration":"' + defaultApiUrls.registration + '"};'
+    + 'var typeEl=document.getElementById("schedulerTypeSelect");'
+    + 'var urlEl=document.getElementById("apiUrlInput");'
+    + 'if(typeEl&&urlEl){'
+    + 'typeEl.addEventListener("change",function(){'
+    + 'urlEl.value=API_URLS[this.value]||"";'
+    + '});}'
+    + '<\/script>';
+
+var body = flashHtml
+    + '<div class="mb-3">' + breadcrumb + '</div>'
+    + formCard
+    + cronHints;
+%>
+<%- include('../layout', { title: title, active: 'schedulers', user: user, body: body }) %>
