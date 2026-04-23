@@ -143,13 +143,17 @@ router.post("/send", authApiKey, async (req, res) => {
     } catch (err) {
         const friendly = mapSendError(err, toNormalized);
 
-        await Message.create({
-            device_id: req.deviceId,
-            to: String(toNormalized),
-            text: String(text),
-            status: "failed",
-            error: friendly,
-        });
+        try {
+            await Message.create({
+                device_id: req.deviceId,
+                to: String(toNormalized),
+                text: String(text),
+                status: "failed",
+                error: friendly,
+            });
+        } catch (dbErr) {
+            console.error("[send] Failed to log message to DB:", dbErr.message, dbErr.original?.code, dbErr.original?.sqlMessage);
+        }
 
         const isClientError =
             friendly.toLowerCase().includes("invalid phone") ||
