@@ -66,6 +66,16 @@ class WaManager {
                         "--disable-dev-shm-usage",
                         "--no-zygote",
                         "--disable-gpu",
+                        "--disable-extensions",
+                        "--disable-background-networking",
+                        "--disable-default-apps",
+                        "--disable-sync",
+                        "--disable-translate",
+                        "--hide-scrollbars",
+                        "--metrics-recording-only",
+                        "--mute-audio",
+                        "--no-first-run",
+                        "--safebrowsing-disable-auto-update",
                     ],
                 },
             });
@@ -119,6 +129,9 @@ class WaManager {
                     );
                 } catch (err) {
                     console.error(`Disconnected handler error [${deviceId}]:`, err.message);
+                } finally {
+                    // Selalu destroy Chromium agar tidak jadi zombie process
+                    try { await client.destroy(); } catch (_) {}
                 }
             });
 
@@ -133,6 +146,8 @@ class WaManager {
                     );
                 } catch (err) {
                     console.error(`Auth failure handler error [${deviceId}]:`, err.message);
+                } finally {
+                    try { await client.destroy(); } catch (_) {}
                 }
             });
 

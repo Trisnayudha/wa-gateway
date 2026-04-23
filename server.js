@@ -66,7 +66,9 @@ app.use("/docs", docsRoutes);
 (async () => {
     try {
         await sequelize.authenticate();
-        await sequelize.sync({ alter: true }); // alter:true untuk sync kolom baru
+        // alter:true hanya untuk development. Di production pakai migrate manual.
+        const syncOpts = process.env.NODE_ENV === "production" ? {} : { alter: true };
+        await sequelize.sync(syncOpts);
 
         await wa.initFromDb();
         await schedulerService.init(wa);
