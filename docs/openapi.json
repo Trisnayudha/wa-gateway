@@ -13,8 +13,8 @@
     "paths": {
         "/api/send": {
             "post": {
-                "summary": "Send WhatsApp text message",
-                "description": "Send message using API key bound to a device.",
+                "summary": "Send WhatsApp message (text and/or attachment)",
+                "description": "Send text message, attachment message, or both using API key bound to a device.",
                 "parameters": [
                     {
                         "name": "X-API-KEY",
@@ -33,8 +33,7 @@
                             "schema": {
                                 "type": "object",
                                 "required": [
-                                    "to",
-                                    "text"
+                                    "to"
                                 ],
                                 "properties": {
                                     "to": {
@@ -44,6 +43,21 @@
                                     "text": {
                                         "type": "string",
                                         "example": "Hello from WA Gateway"
+                                    },
+                                    "attachmentUrl": {
+                                        "type": "string",
+                                        "example": "https://example.com/invoice.pdf",
+                                        "description": "Public HTTP/HTTPS URL to file/image/video/document attachment"
+                                    },
+                                    "attachmentCaption": {
+                                        "type": "string",
+                                        "example": "Invoice April 2026",
+                                        "description": "Optional caption for attachment. If omitted, text will be used as caption when available."
+                                    },
+                                    "attachmentFilename": {
+                                        "type": "string",
+                                        "example": "invoice-april-2026.pdf",
+                                        "description": "Optional filename override for WhatsApp attachment display"
                                     }
                                 }
                             }
@@ -80,11 +94,11 @@
                     "401": {
                         "description": "Unauthorized (invalid API key)"
                     },
-                    "503": {
-                        "description": "Device not ready"
-                    },
                     "500": {
                         "description": "Server Error"
+                    },
+                    "503": {
+                        "description": "Device not ready"
                     }
                 }
             }

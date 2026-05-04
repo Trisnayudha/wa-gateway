@@ -1,7 +1,3 @@
-// routes/api.js (atau file router kamu yang sekarang)
-// POST /api/send  (Header: X-API-KEY)
-// Body: { to, text }
-
 const express = require("express");
 const authApiKey = require("../middleware/auth");
 
@@ -10,38 +6,29 @@ const wa = require("../wa/manager");
 
 const router = express.Router();
 
-/**
- * Normalize destination:
- * - If already has @c.us / @g.us → keep
- * - If looks like WhatsApp group id (starts with 120..., long) → add @g.us
- * - Else → treat as phone number and add @c.us
- */
 function normalizeTo(to) {
     let t = String(to || "").trim();
 
     if (!t) return t;
 
-    // already full jid
     if (t.includes("@c.us") || t.includes("@g.us")) return t;
 
-    // remove spaces, dashes, parentheses, etc
     t = t.replace(/[^\d]/g, "");
 
-    // detect group id (commonly starts with 120... and long)
     const looksLikeGroup = t.startsWith("120") && t.length >= 15;
     if (looksLikeGroup) return `${t}@g.us`;
 
-    // normalize Indonesian phone number
     if (t.startsWith("08")) {
-        t = "62" + t.slice(1); // 0838xxx -> 62838xxx
+        t = "62" + t.slice(1);
     } else if (t.startsWith("8")) {
-        t = "62" + t; // 838xxx -> 62838xxx
+        t = "62" + t;
     } else if (t.startsWith("620")) {
-        t = "62" + t.slice(3); // antisipasi input aneh: 620838xxx -> 62838xxx
+        t = "62" + t.slice(3);
     }
 
     return `${t}@c.us`;
 }
+
 function isValidWhatsAppTarget(to) {
     const t = String(to || "").trim();
 
@@ -55,26 +42,20 @@ function isValidWhatsAppTarget(to) {
 
     const digits = t.replace(/[^\d]/g, "");
 
-    // group id
     if (digits.startsWith("120") && digits.length >= 15) return true;
 
-    // nomor indo yang diterima:
-    // 08xxxx, 8xxxx, 62xxxx
     if (digits.startsWith("08")) return digits.length >= 10;
     if (digits.startsWith("8")) return digits.length >= 9;
     if (digits.startsWith("62")) return digits.length >= 10;
 
     return false;
 }
-/**
- * Map low-level WA errors into friendly API messages
- */
+
 function mapSendError(err, toNormalized) {
     const msg = String(err?.message || err || "").trim();
 
     const isGroup = String(toNormalized || "").includes("@g.us");
 
-    // whatsapp-web.js-ish common cases
     if (msg.includes("No LID for user")) {
         return isGroup
             ? "Group not found or your device is not a member of the group"
@@ -102,11 +83,37 @@ function mapSendError(err, toNormalized) {
     return msg || "Send failed";
 }
 
-router.post("/send", authApiKey, async (req, res) => {
-    const { to, text } = req.body || {};
+function isValidHttpUrl(url) {
+    try {
+        const u = new URL(String(url || "").trim());
+        return u.protocol === "http:" || u.protocol === "https:";
+    } catch {
+        return false;
+    }
+}
 
-    if (!to || !text) {
-        return res.status(400).json({ ok: false, message: "body required: {to, text}" });
+router.post("/send", authApiKey, async (req, res) => {
+    const { to, text, attachmentUrl, attachmentCaption, attachmentFilename } = req.body || {};
+
+    if (!to) {
+        return res.status(400).json({ ok: false, message: "body required: {to, text? , attachmentUrl?}" });
+    }
+
+    const hasText = typeof text === "string" && text.trim().length > 0;
+    const hasAttachment = typeof attachmentUrl === "string" && attachmentUrl.trim().length > 0;
+
+    if (!hasText && !hasAttachment) {
+        return res.status(400).json({
+            ok: false,
+            message: "Either text or attachmentUrl must be provided"
+        });
+    }
+
+    if (hasAttachment && !isValidHttpUrl(attachmentUrl)) {
+        return res.status(400).json({
+            ok: false,
+            message: "Invalid attachmentUrl. Use a valid http/https URL"
+        });
     }
 
     if (!isValidWhatsAppTarget(to)) {
@@ -123,12 +130,24 @@ router.post("/send", authApiKey, async (req, res) => {
     const toNormalized = normalizeTo(to);
 
     try {
-        const msg = await wa.sendText(req.deviceId, toNormalized, text);
+        const payloadText = hasText ? text.trim() : null;
+
+        const msg = hasAttachment
+            ? await wa.sendAttachment(req.deviceId, toNormalized, {
+                url: attachmentUrl,
+                caption: typeof attachmentCaption === "string" && attachmentCaption.trim()
+                    ? attachmentCaption.trim()
+                    : payloadText,
+                filename: typeof attachmentFilename === "string" && attachmentFilename.trim()
+                    ? attachmentFilename.trim()
+                    : undefined,
+            })
+            : await wa.sendText(req.deviceId, toNormalized, payloadText);
 
         await Message.create({
             device_id: req.deviceId,
             to: String(toNormalized),
-            text: String(text),
+            text: String(payloadText || (hasAttachment ? `[attachment] ${attachmentUrl}` : "")),
             status: "sent",
             error: null,
             message_id: msg?.id?._serialized || null,
@@ -139,6 +158,7 @@ router.post("/send", authApiKey, async (req, res) => {
             deviceId: req.deviceId,
             to: toNormalized,
             messageId: msg?.id?._serialized || null,
+            hasAttachment,
         });
     } catch (err) {
         const friendly = mapSendError(err, toNormalized);
@@ -147,7 +167,7 @@ router.post("/send", authApiKey, async (req, res) => {
             await Message.create({
                 device_id: req.deviceId,
                 to: String(toNormalized),
-                text: String(text),
+                text: String((typeof text === "string" ? text : "") || (hasAttachment ? `[attachment] ${attachmentUrl}` : "")),
                 status: "failed",
                 error: friendly,
             });
@@ -160,7 +180,8 @@ router.post("/send", authApiKey, async (req, res) => {
             friendly.toLowerCase().includes("not registered") ||
             friendly.toLowerCase().includes("group not found") ||
             friendly.toLowerCase().includes("not a member") ||
-            friendly.toLowerCase().includes("not allowed");
+            friendly.toLowerCase().includes("not allowed") ||
+            friendly.toLowerCase().includes("invalid attachmenturl");
 
         return res.status(isClientError ? 400 : 500).json({
             ok: false,
@@ -169,11 +190,9 @@ router.post("/send", authApiKey, async (req, res) => {
         });
     }
 });
-// GET /api/groups
+
 router.get("/groups", authApiKey, async (req, res) => {
     try {
-        // pastikan wa punya method untuk ambil client by deviceId
-        // contoh: wa.getClient(deviceId)
         const client = wa.getClient(req.deviceId);
         if (!client) return res.status(503).json({ ok: false, message: "Client not ready" });
 
@@ -182,7 +201,7 @@ router.get("/groups", authApiKey, async (req, res) => {
             .filter((c) => c.isGroup)
             .map((g) => ({
                 name: g.name,
-                id: g.id?._serialized,   // INI yang dipakai untuk kirim
+                id: g.id?._serialized,
                 participants: g.participants?.length ?? null,
             }));
 

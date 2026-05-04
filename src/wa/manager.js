@@ -1,5 +1,5 @@
 const qrcode = require("qrcode");
-const { Client, LocalAuth } = require("whatsapp-web.js");
+const { Client, LocalAuth, MessageMedia } = require("whatsapp-web.js");
 const { Device } = require("../db/models");
 const commandHandler = require("./commandHandler"); // ✅ TAMBAHAN
 
@@ -215,6 +215,28 @@ class WaManager {
         }
 
         return client.sendMessage(chatId, String(text));
+    }
+
+    async sendAttachment(deviceId, to, attachment) {
+        const client = this.clients.get(deviceId);
+        if (!client) throw new Error("Device client not found");
+        if (!client.info) throw new Error("Device not ready");
+
+        const chatId = this.normalizeTo(to);
+        if (!chatId) throw new Error("Invalid 'to' value");
+
+        const url = String(attachment?.url || "").trim();
+        if (!url) throw new Error("attachmentUrl is required");
+
+        const media = await MessageMedia.fromUrl(url, {
+            unsafeMime: true,
+            filename: attachment?.filename || undefined,
+        });
+
+        if (!media) throw new Error("Failed to load attachment from URL");
+
+        const caption = String(attachment?.caption || "").trim();
+        return client.sendMessage(chatId, media, caption ? { caption } : undefined);
     }
 
     async destroyAll() {

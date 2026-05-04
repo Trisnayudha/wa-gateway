@@ -154,6 +154,7 @@
                 <option value="ok">OK / Test</option>
                 <option value="im">IM Registration</option>
                 <option value="warn">Warning</option>
+                <option value="attach">Attachment Example</option>
               </select>
             </div>
 
@@ -161,8 +162,23 @@
               <label class="form-label small mb-1">Message</label>
               <textarea class="form-control" id="sm_text" rows="3" placeholder="Tulis pesan..."></textarea>
               <div class="text-secondary small mt-1">
-                Format saran: gunakan 62xxx. Hindari spam biar aman.
+                Format saran: gunakan 62xxx. Isi minimal salah satu: Message atau Attachment URL.
               </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label small mb-1">Attachment URL (optional)</label>
+              <input class="form-control" id="sm_attachment_url" placeholder="https://example.com/invoice.pdf" />
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small mb-1">Attachment Caption (optional)</label>
+              <input class="form-control" id="sm_attachment_caption" placeholder="Invoice April 2026" />
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small mb-1">Attachment Filename (optional)</label>
+              <input class="form-control" id="sm_attachment_filename" placeholder="invoice-april-2026.pdf" />
             </div>
 
             <div class="col-12 d-flex gap-2 align-items-center mt-1">
@@ -200,6 +216,9 @@
     function clearSendForm(){
       document.getElementById('sm_to').value = '';
       document.getElementById('sm_text').value = '';
+      document.getElementById('sm_attachment_url').value = '';
+      document.getElementById('sm_attachment_caption').value = '';
+      document.getElementById('sm_attachment_filename').value = '';
       document.getElementById('sm_preset').value = '';
       setStatus('', 'ok');
     }
@@ -211,10 +230,24 @@
 
       if(p === 'ok'){
         ta.value = 'Test message: OK ✅';
+        document.getElementById('sm_attachment_url').value = '';
+        document.getElementById('sm_attachment_caption').value = '';
+        document.getElementById('sm_attachment_filename').value = '';
       } else if(p === 'im'){
         ta.value = 'Events Mining Detail Pendaftaran: NEW / RE-OPENED REGISTRATION (CREATED WITH STATUS: WAITING)';
+        document.getElementById('sm_attachment_url').value = '';
+        document.getElementById('sm_attachment_caption').value = '';
+        document.getElementById('sm_attachment_filename').value = '';
       } else if(p === 'warn'){
         ta.value = '⚠️ Warning: please check your registration status.';
+        document.getElementById('sm_attachment_url').value = '';
+        document.getElementById('sm_attachment_caption').value = '';
+        document.getElementById('sm_attachment_filename').value = '';
+      } else if(p === 'attach'){
+        ta.value = 'Halo, berikut file lampiran.';
+        document.getElementById('sm_attachment_url').value = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+        document.getElementById('sm_attachment_caption').value = 'Contoh attachment PDF';
+        document.getElementById('sm_attachment_filename').value = 'contoh.pdf';
       }
     }
 
@@ -266,22 +299,31 @@
   const key = (document.getElementById('sm_key').value || '').trim();
   const to = (document.getElementById('sm_to').value || '').trim();
   const text = (document.getElementById('sm_text').value || '').trim();
+  const attachmentUrl = (document.getElementById('sm_attachment_url').value || '').trim();
+  const attachmentCaption = (document.getElementById('sm_attachment_caption').value || '').trim();
+  const attachmentFilename = (document.getElementById('sm_attachment_filename').value || '').trim();
 
   if(!device_id) return setStatus('Device wajib dipilih.', 'warn');
   if(!key) return setStatus('X-API-KEY empty.', 'warn');
   if(!to) return setStatus('Nomor tujuan wajib.', 'warn');
-  if(!text) return setStatus('Pesan wajib.', 'warn');
+  if(!text && !attachmentUrl) return setStatus('Isi Message atau Attachment URL.', 'warn');
 
   setStatus('Sending...', 'warn');
 
   try{
+    const payload = { to };
+    if(text) payload.text = text;
+    if(attachmentUrl) payload.attachmentUrl = attachmentUrl;
+    if(attachmentCaption) payload.attachmentCaption = attachmentCaption;
+    if(attachmentFilename) payload.attachmentFilename = attachmentFilename;
+
     const res = await fetch('/api/send', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-API-KEY': key
       },
-      body: JSON.stringify({ device_id, to, text }) // ✅ FIX DI SINI
+      body: JSON.stringify(payload)
     });
 
     const data = await res.json().catch(()=>({}));
