@@ -58,6 +58,12 @@ class WaManager {
         const initPromise = (async () => {
             const client = new Client({
                 authStrategy: new LocalAuth({ clientId: `device-${deviceId}` }),
+                // Pin to stable WhatsApp Web build (2.3000.1036950040) to avoid "r: r" errors from WhatsApp Web 2.3000.1043+
+                webVersion: "2.3000.1036950040",
+                webVersionCache: {
+                    type: "remote",
+                    remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html",
+                },
                 puppeteer: {
                     headless: true,
                     args: [
@@ -195,26 +201,51 @@ class WaManager {
         return `${digitsOnly}@c.us`;
     }
 
+    // Resolves to WhatsApp's own canonical WID (via getNumberId) instead of trusting our
+    // locally-built "<digits>@c.us" string, since the two can diverge for numbers on
+    // newer WhatsApp addressing schemes and that mismatch alone can break chat creation.
+    async resolveChatId(client, to) {
+        const chatId = this.normalizeTo(to);
+        if (!chatId) throw new Error("Invalid 'to' value");
+
+        if (!chatId.endsWith("@c.us") || typeof client.getNumberId !== "function") {
+            return chatId;
+        }
+
+        const numberId = await client.getNumberId(chatId);
+        if (!numberId) throw new Error("Invalid phone number or not registered on WhatsApp");
+
+        return numberId._serialized || chatId;
+    }
+
+    // whatsapp-web.js sometimes rejects new-chat creation with a bare, non-descriptive
+    // thrown value (e.g. a single character) instead of a real Error - this happens when
+    // WhatsApp blocks this automated session from starting a conversation with a number
+    // it has no prior history with. Surface that plainly instead of the raw fragment.
+    wrapChatError(err, chatId) {
+        if (err instanceof Error && err.message && err.message.length > 3) return err;
+
+        const raw = String(err?.message ?? err ?? "").trim();
+        if (raw.length > 3) return new Error(raw, { cause: err });
+
+        return new Error(
+            `Gagal membuat chat baru ke ${chatId}. WhatsApp kemungkinan membatasi device ini untuk memulai percakapan baru dengan nomor yang belum pernah chat sebelumnya. Minta nomor tujuan mengirim pesan lebih dulu, atau kirim ke nomor yang device ini sudah pernah chat.`,
+            { cause: err }
+        );
+    }
+
     async sendText(deviceId, to, text) {
         const client = this.clients.get(deviceId);
         if (!client) throw new Error("Device client not found");
         if (!client.info) throw new Error("Device not ready");
 
-        const chatId = this.normalizeTo(to);
-        if (!chatId) throw new Error("Invalid 'to' value");
+        const chatId = await this.resolveChatId(client, to);
 
-        if (chatId.endsWith("@c.us") && typeof client.isRegisteredUser === "function") {
-            const ok = await client.isRegisteredUser(chatId);
-            if (!ok) throw new Error("Invalid phone number or not registered on WhatsApp");
+        try {
+            return await client.sendMessage(chatId, String(text));
+        } catch (err) {
+            throw this.wrapChatError(err, chatId);
         }
-
-        if (typeof client.getChatById === "function") {
-            const chat = await client.getChatById(chatId);
-            if (!chat) throw new Error("Chat not found");
-            return chat.sendMessage(String(text));
-        }
-
-        return client.sendMessage(chatId, String(text));
     }
 
     async sendAttachment(deviceId, to, attachment) {
@@ -222,8 +253,7 @@ class WaManager {
         if (!client) throw new Error("Device client not found");
         if (!client.info) throw new Error("Device not ready");
 
-        const chatId = this.normalizeTo(to);
-        if (!chatId) throw new Error("Invalid 'to' value");
+        const chatId = await this.resolveChatId(client, to);
 
         const url = String(attachment?.url || "").trim();
         if (!url) throw new Error("attachmentUrl is required");
@@ -236,7 +266,12 @@ class WaManager {
         if (!media) throw new Error("Failed to load attachment from URL");
 
         const caption = String(attachment?.caption || "").trim();
-        return client.sendMessage(chatId, media, caption ? { caption } : undefined);
+
+        try {
+            return await client.sendMessage(chatId, media, caption ? { caption } : undefined);
+        } catch (err) {
+            throw this.wrapChatError(err, chatId);
+        }
     }
 
     async destroyAll() {

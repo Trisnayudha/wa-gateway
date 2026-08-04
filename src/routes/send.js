@@ -161,6 +161,8 @@ router.post("/send", authApiKey, async (req, res) => {
             hasAttachment,
         });
     } catch (err) {
+        console.error(`[send] sendText/sendAttachment failed [device=${req.deviceId}, to=${toNormalized}]:`, err);
+
         const friendly = mapSendError(err, toNormalized);
 
         try {
