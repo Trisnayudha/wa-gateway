@@ -17,15 +17,18 @@ module.exports = {
 
         const broadcastMsg = args.join(" ");
 
-        // Ambil semua chat yang merupakan grup
-        let chats;
+        // Ambil semua grup lewat wa.getGroupChats agar tidak memicu serialization error "r"
+        let groups;
         try {
-            chats = await client.getChats();
+            const wa = require("../manager");
+            const rawGroups = await wa.getGroupChats(deviceId);
+            groups = (rawGroups || []).map((g) => ({
+                id: g.id?._serialized || (typeof g.id === "string" ? g.id : null),
+                name: g.formattedTitle || g.name || null,
+            })).filter((g) => !!g.id);
         } catch (err) {
             return message.reply(`⚠️ Gagal mengambil daftar chat: ${err.message}`);
         }
-
-        const groups = chats.filter((c) => c.isGroup);
 
         if (groups.length === 0) {
             return message.reply("⚠️ Bot tidak bergabung di grup manapun.");
@@ -41,15 +44,15 @@ module.exports = {
 
         for (const group of groups) {
             try {
-                await group.sendMessage(`📢 *Broadcast*\n\n${broadcastMsg}`);
+                await client.sendMessage(group.id, `📢 *Broadcast*\n\n${broadcastMsg}`);
                 successCount++;
 
                 // Delay 1.5 detik antar grup agar tidak terlalu cepat (anti-spam)
                 await new Promise((r) => setTimeout(r, 1500));
             } catch (err) {
                 failCount++;
-                failedGroups.push(group.name || group.id._serialized);
-                console.error(`[broadcast] Failed to ${group.id._serialized}:`, err.message);
+                failedGroups.push(group.name || group.id);
+                console.error(`[broadcast] Failed to ${group.id}:`, err.message);
             }
         }
 

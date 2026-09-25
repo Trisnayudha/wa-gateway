@@ -70,60 +70,60 @@
                 const groups = data.groups || [];
 
                 if (!groups.length) {
-                    container.innerHTML = '<div class="text-secondary">No groups found</div>';
+                    container.innerHTML = '<div class="alert alert-info py-2">Tidak ada grup yang ditemukan pada device ini.</div>';
                     return;
                 }
 
-                let html = '<div class="table-responsive">';
-                html += '<table class="table table-sm table-bordered">';
-                html += '<thead>';
+                let html = '<div class="d-flex justify-content-between align-items-center mb-2">';
+                html += '<span class="text-muted small">Total: <strong>' + groups.length + '</strong> grup ditemukan</span>';
+                html += '<input type="text" id="filter_group" class="form-control form-control-sm w-auto" placeholder="Cari nama atau ID..." onkeyup="filterGroupsTable()">';
+                html += '</div>';
+
+                html += '<div class="table-responsive">';
+                html += '<table class="table table-sm table-bordered table-hover align-middle">';
+                html += '<thead class="table-light">';
                 html += '<tr>';
                 html += '<th>Name</th>';
-                html += '<th>Participants</th>';
+                html += '<th width="120" class="text-center">Participants</th>';
                 html += '<th>Group ID</th>';
-                html += '<th width="120">Action</th>';
+                html += '<th width="100" class="text-center">Action</th>';
                 html += '</tr>';
                 html += '</thead>';
                 html += '<tbody>';
 
                 groups.forEach(g => {
-
                     html += '<tr>';
-
-                    html += '<td>' + (g.name || '-') + '</td>';
-                    html += '<td>' + (g.participants || '-') + '</td>';
+                    html += '<td><strong>' + (g.name || '-') + '</strong></td>';
+                    html += '<td class="text-center"><span class="badge bg-secondary">' + (g.participants !== null && g.participants !== undefined ? g.participants : '-') + '</span></td>';
                     html += '<td><code>' + g.id + '</code></td>';
-
-                    html += '<td>';
-
+                    html += '<td class="text-center">';
                     html += '<button class="btn btn-sm btn-outline-primary" onclick="copyGroup(\\''+g.id+'\\')">';
-                    html += 'Copy';
+                    html += '<i class="bi bi-clipboard"></i> Copy';
                     html += '</button>';
-
                     html += '</td>';
-
                     html += '</tr>';
-
                 });
 
                 html += '</tbody></table></div>';
-
                 container.innerHTML = html;
 
             } catch (e) {
-
-                container.innerHTML = '<div class="text-danger">Network error</div>';
-
+                container.innerHTML = '<div class="text-danger">Network error: ' + e.message + '</div>';
             }
+        }
 
+        function filterGroupsTable() {
+            const q = (document.getElementById('filter_group')?.value || '').toLowerCase();
+            const rows = document.querySelectorAll('#groups_table tbody tr');
+            rows.forEach(tr => {
+                const text = tr.innerText.toLowerCase();
+                tr.style.display = text.includes(q) ? '' : 'none';
+            });
         }
 
         function copyGroup(id) {
-
             navigator.clipboard.writeText(id);
-
-            alert('Group ID copied');
-
+            alert('Group ID berhasil disalin: ' + id);
         }
 
     </script>

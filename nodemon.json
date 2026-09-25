@@ -1,0 +1,5 @@
+{
+    "watch": ["server.js", "src", "views", "public"],
+    "ext": "js,mjs,cjs,json,ejs",
+    "ignore": [".wwebjs_auth/**", ".wwebjs_cache/**", "node_modules/**", ".git/**"]
+}

@@ -66,9 +66,8 @@ app.use("/docs", docsRoutes);
 (async () => {
     try {
         await sequelize.authenticate();
-        // alter:true hanya untuk development. Di production pakai migrate manual.
-        const syncOpts = process.env.NODE_ENV === "production" ? {} : { alter: true };
-        await sequelize.sync(syncOpts);
+        // Gunakan sequelize.sync() tanpa alter:true agar MySQL tidak menumpuk duplicate unique index setiap nodemon restart
+        await sequelize.sync();
 
         await wa.initFromDb();
         await schedulerService.init(wa);
@@ -104,3 +103,33 @@ async function shutdown(signal) {
 
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+process.on("unhandledRejection", (reason) => {
+    if (reason?.message?.includes("detached Frame") || reason?.message?.includes("Execution context was destroyed")) {
+        console.warn("[WA] Warning: Puppeteer frame navigation race condition diabaikan:", reason.message);
+        return;
+    }
+    console.error("Unhandled Rejection:", reason);
+});
+
+// nodemon restarts by sending SIGUSR2. Node has no default listener for it, so without this
+// handler the process (and every Puppeteer/Chrome instance it spawned) dies without cleanup,
+// leaving orphaned Chrome processes that block the next launch with "browser already running".
+process.once("SIGUSR2", async () => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+
+    console.log("\nSIGUSR2 (nodemon restart) received. Closing WA clients...");
+
+    try {
+        await waManager.destroyAll();
+
+        if (server) {
+            await new Promise((resolve) => server.close(resolve));
+        }
+    } catch (err) {
+        console.error("Shutdown error:", err.message);
+    } finally {
+        process.kill(process.pid, "SIGUSR2");
+    }
+});

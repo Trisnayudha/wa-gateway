@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const qrcode = require("qrcode");
 const { Client, LocalAuth, MessageMedia } = require("whatsapp-web.js");
 const { Device } = require("../db/models");
@@ -56,21 +58,22 @@ class WaManager {
         if (this.initializing.has(deviceId)) return this.initializing.get(deviceId);
 
         const initPromise = (async () => {
+            // Bersihkan stale SingletonLock dari crash sebelumnya agar tidak muncul error "browser is already running"
+            try {
+                const lockPath = path.join(process.cwd(), ".wwebjs_auth", `session-device-${deviceId}`, "SingletonLock");
+                if (fs.existsSync(lockPath)) {
+                    fs.unlinkSync(lockPath);
+                }
+            } catch (_) {}
+
             const client = new Client({
                 authStrategy: new LocalAuth({ clientId: `device-${deviceId}` }),
-                // Pin to stable WhatsApp Web build (2.3000.1036950040) to avoid "r: r" errors from WhatsApp Web 2.3000.1043+
-                webVersion: "2.3000.1036950040",
-                webVersionCache: {
-                    type: "remote",
-                    remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html",
-                },
                 puppeteer: {
                     headless: true,
                     args: [
                         "--no-sandbox",
                         "--disable-setuid-sandbox",
                         "--disable-dev-shm-usage",
-                        "--no-zygote",
                         "--disable-gpu",
                         "--disable-extensions",
                         "--disable-background-networking",
@@ -82,6 +85,8 @@ class WaManager {
                         "--mute-audio",
                         "--no-first-run",
                         "--safebrowsing-disable-auto-update",
+                        "--disable-features=IsolateOrigins,site-per-process",
+                        "--disable-site-isolation-trials",
                     ],
                 },
             });
@@ -272,6 +277,148 @@ class WaManager {
         } catch (err) {
             throw this.wrapChatError(err, chatId);
         }
+    }
+
+    // Mengambil semua grup WhatsApp tanpa memanggil getChatModel() yang melempar error "r"
+    // Menggabungkan data dari Chat collection dan GroupMetadata collection agar semua grup terambil lengkap
+    async getGroupChats(deviceId) {
+        const client = this.clients.get(deviceId);
+        if (!client) throw new Error("Device client not found");
+        if (!client.info) throw new Error("Device not ready");
+
+        return client.pupPage.evaluate(async () => {
+            const collections = window.require ? window.require("WAWebCollections") : null;
+            if (!collections) return [];
+
+            const Chat = collections.Chat || collections.WAWebChatCollection;
+            const GroupMetadata = collections.GroupMetadata || collections.WAWebGroupMetadataCollection;
+            const WidFactory = window.require ? window.require("WAWebWidFactory") : null;
+
+            const createWid = (raw) => {
+                try {
+                    return WidFactory ? WidFactory.createWid(raw) : null;
+                } catch (_) {
+                    return null;
+                }
+            };
+
+            const getCount = (gm) => {
+                if (!gm) return null;
+                if (typeof gm.size === "number" && gm.size > 0) return gm.size;
+                const p = gm.participants;
+                if (p) {
+                    if (typeof p.length === "number" && p.length > 0) return p.length;
+                    if (typeof p.size === "number" && p.size > 0) return p.size;
+                    if (Array.isArray(p) && p.length > 0) return p.length;
+                    if (Array.isArray(p._models) && p._models.length > 0) return p._models.length;
+                    if (Array.isArray(p.models) && p.models.length > 0) return p.models.length;
+                    try {
+                        if (typeof p.serialize === "function") {
+                            const s = p.serialize();
+                            if (Array.isArray(s) && s.length > 0) return s.length;
+                        }
+                    } catch (_) {}
+                    try {
+                        if (typeof p.getModelsArray === "function") {
+                            const arr = p.getModelsArray();
+                            if (Array.isArray(arr) && arr.length > 0) return arr.length;
+                        }
+                    } catch (_) {}
+                }
+                try {
+                    if (typeof gm.serialize === "function") {
+                        const s = gm.serialize();
+                        if (Array.isArray(s?.participants) && s.participants.length > 0) return s.participants.length;
+                        if (typeof s?.size === "number" && s.size > 0) return s.size;
+                    }
+                } catch (_) {}
+                return null;
+            };
+
+            const groupsMap = new Map();
+
+            // 1. Ambil dari Chat collection
+            if (Chat && typeof Chat.getModelsArray === "function") {
+                const chats = Chat.getModelsArray();
+                for (const c of chats) {
+                    try {
+                        const rawId = c.id?._serialized || (typeof c.id === "string" ? c.id : null);
+                        const isGroup = Boolean(c.isGroup || (rawId && rawId.endsWith("@g.us")));
+                        if (!isGroup || !rawId) continue;
+
+                        const name = c.formattedTitle || c.name || c.contact?.name || c.contact?.pushname || rawId;
+
+                        let gm = c.groupMetadata;
+                        if (!gm && GroupMetadata) {
+                            try {
+                                const wid = createWid(rawId);
+                                gm = (wid ? GroupMetadata.get(wid) : null) || GroupMetadata.get(rawId) || null;
+                            } catch (_) {}
+                        }
+
+                        const count = getCount(gm);
+
+                        groupsMap.set(rawId, {
+                            id: { _serialized: rawId },
+                            name: name,
+                            formattedTitle: name,
+                            participants: count,
+                            groupMetadata: {
+                                participants: count !== null ? new Array(count) : [],
+                            },
+                        });
+                    } catch (_) {}
+                }
+            }
+
+            // 2. Ambil dari GroupMetadata collection (mencakup grup yang belum aktif di chat list)
+            if (GroupMetadata && typeof GroupMetadata.getModelsArray === "function") {
+                try {
+                    const gmList = GroupMetadata.getModelsArray();
+                    for (const gm of gmList) {
+                        try {
+                            const rawId = gm.id?._serialized || (typeof gm.id === "string" ? gm.id : null);
+                            if (!rawId || !rawId.endsWith("@g.us")) continue;
+
+                            const count = getCount(gm);
+
+                            if (!groupsMap.has(rawId)) {
+                                let title = gm.subject || null;
+                                if (!title && Chat && typeof Chat.get === "function") {
+                                    try {
+                                        const wid = createWid(rawId);
+                                        const c = (wid ? Chat.get(wid) : null) || Chat.get(rawId);
+                                        title = c?.formattedTitle || c?.name;
+                                    } catch (_) {}
+                                }
+
+                                groupsMap.set(rawId, {
+                                    id: { _serialized: rawId },
+                                    name: title || rawId,
+                                    formattedTitle: title || rawId,
+                                    participants: count,
+                                    groupMetadata: {
+                                        participants: count !== null ? new Array(count) : [],
+                                    },
+                                });
+                            } else {
+                                const existing = groupsMap.get(rawId);
+                                if ((existing.participants === null || existing.participants === 0) && count !== null) {
+                                    existing.participants = count;
+                                    existing.groupMetadata.participants = new Array(count);
+                                }
+                                if ((!existing.name || existing.name === rawId) && gm.subject) {
+                                    existing.name = gm.subject;
+                                    existing.formattedTitle = gm.subject;
+                                }
+                            }
+                        } catch (_) {}
+                    }
+                } catch (_) {}
+            }
+
+            return Array.from(groupsMap.values());
+        });
     }
 
     async destroyAll() {

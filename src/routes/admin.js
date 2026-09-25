@@ -215,14 +215,13 @@ router.get("/devices/:id/groups", async (req, res) => {
             return res.status(503).json({ ok: false, message: "Client not ready" });
         }
 
-        const chats = await client.getChats();
+        const chats = await wa.getGroupChats(req.params.id);
 
         const groups = chats
-            .filter((c) => c.isGroup)
             .map((g) => ({
-                name: g.name,
-                id: g.id?._serialized || null,
-                participants: g.participants?.length ?? null,
+                name: g.formattedTitle || g.name || null,
+                id: g.id?._serialized || (typeof g.id === "string" ? g.id : null),
+                participants: g.participants ?? g.groupMetadata?.participants?.length ?? null,
             }))
             .filter((g) => !!g.id)
             .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
@@ -234,6 +233,7 @@ router.get("/devices/:id/groups", async (req, res) => {
             groups,
         });
     } catch (err) {
+        console.error(`[admin/groups] getChats failed [device=${req.params.id}]:`, err);
         return res.status(500).json({
             ok: false,
             message: err.message || "Failed to fetch groups",
@@ -268,8 +268,8 @@ router.get("/devices/:id/groups/check", async (req, res) => {
 
         const gid = normalizeGroupId(groupId);
 
-        const chats = await client.getChats();
-        const grp = chats.find((c) => c.isGroup && c.id?._serialized === gid);
+        const chats = await wa.getGroupChats(req.params.id);
+        const grp = chats.find((c) => (c.id?._serialized || (typeof c.id === "string" ? c.id : null)) === gid);
 
         if (!grp) {
             return res.status(404).json({

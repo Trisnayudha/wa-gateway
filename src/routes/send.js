@@ -198,17 +198,18 @@ router.get("/groups", authApiKey, async (req, res) => {
         const client = wa.getClient(req.deviceId);
         if (!client) return res.status(503).json({ ok: false, message: "Client not ready" });
 
-        const chats = await client.getChats();
+        const chats = await wa.getGroupChats(req.deviceId);
         const groups = chats
-            .filter((c) => c.isGroup)
             .map((g) => ({
-                name: g.name,
-                id: g.id?._serialized,
-                participants: g.participants?.length ?? null,
-            }));
+                name: g.formattedTitle || g.name || null,
+                id: g.id?._serialized || (typeof g.id === "string" ? g.id : null),
+                participants: g.participants ?? g.groupMetadata?.participants?.length ?? null,
+            }))
+            .filter((g) => !!g.id);
 
         return res.json({ ok: true, deviceId: req.deviceId, groups });
     } catch (err) {
+        console.error(`[groups] getChats failed [device=${req.deviceId}]:`, err);
         return res.status(500).json({ ok: false, message: err.message || "Failed to fetch groups" });
     }
 });
