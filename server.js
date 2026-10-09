@@ -17,6 +17,7 @@ const commandRoutes = require("./src/routes/commands"); // ✅ TAMBAHAN
 const settingsRoutes = require("./src/routes/settings");
 const schedulerRoutes = require("./src/routes/schedulers");
 const schedulerService = require("./src/wa/schedulerService");
+const followupReminderService = require("./src/wa/followupReminderService");
 const requireLogin = require("./src/middleware/requireLogin");
 const expressLayouts = require("express-ejs-layouts");
 
@@ -71,6 +72,7 @@ app.use("/docs", docsRoutes);
 
         await wa.initFromDb();
         await schedulerService.init(wa);
+        followupReminderService.init(wa);
 
         const PORT = process.env.PORT || 3100;
         server = app.listen(PORT, () =>

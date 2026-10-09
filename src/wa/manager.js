@@ -239,7 +239,8 @@ class WaManager {
         );
     }
 
-    async sendText(deviceId, to, text) {
+    // options diteruskan apa adanya ke client.sendMessage (mis. { mentions: ["628xx@c.us"] })
+    async sendText(deviceId, to, text, options) {
         const client = this.clients.get(deviceId);
         if (!client) throw new Error("Device client not found");
         if (!client.info) throw new Error("Device not ready");
@@ -247,7 +248,7 @@ class WaManager {
         const chatId = await this.resolveChatId(client, to);
 
         try {
-            return await client.sendMessage(chatId, String(text));
+            return await client.sendMessage(chatId, String(text), options);
         } catch (err) {
             throw this.wrapChatError(err, chatId);
         }

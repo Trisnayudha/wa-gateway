@@ -12,6 +12,72 @@ const REGISTRY = [
         description: "Default event ID untuk command !peserta, !detail, !checkin (DMC)",
         type: "number",
     },
+    // ── Reminder follow-up lead IM-DMU (src/wa/followupReminderService.js) ──
+    // API key-nya di .env (DMU_REMINDER_API_KEY), bukan di sini — secret tidak tampil di UI.
+    {
+        key: "DMU_REMINDER_ENABLED",
+        defaultValue: "0",
+        description: "1 = aktifkan reminder lead DMU yang belum di-follow up (24h & 48h), 0 = mati",
+        type: "number",
+    },
+    {
+        key: "DMU_REMINDER_API_URL",
+        defaultValue: "",
+        description: "URL feed DMU, mis. https://dmu.indonesiaminer.com/api/followup-reminders",
+    },
+    {
+        key: "DMU_REMINDER_DEVICE_ID",
+        defaultValue: "",
+        description: "ID device WA pengirim reminder (lihat halaman Devices)",
+    },
+    {
+        key: "DMU_REMINDER_GROUP_ID",
+        defaultValue: "",
+        description: "ID grup sales tujuan reminder (cek pakai !grupid di grup tsb), mis. 1203630xxxx@g.us",
+    },
+    {
+        key: "DMU_REMINDER_MENTIONS",
+        defaultValue: "",
+        description: "Nomor admin/PIC yang di-tag di reminder 48h, pisahkan koma, mis. 6281234567890,6289876543210",
+    },
+    {
+        key: "DMU_REMINDER_QUIET_HOURS",
+        defaultValue: "20-8",
+        description: "Jam tidak kirim (WIB), format mulai-selesai. Reminder yang tertahan dikirim setelahnya. Kosongkan = 24 jam",
+    },
+    // ── Reminder Lead Follow-Up sponsor DMC (src/wa/followupReminderService.js) ──
+    // API key-nya di .env (DMC_REMINDER_API_KEY).
+    {
+        key: "DMC_REMINDER_ENABLED",
+        defaultValue: "0",
+        description: "1 = aktifkan reminder Lead Follow-Up sponsor DMC (H-1 deadline & overdue), 0 = mati",
+        type: "number",
+    },
+    {
+        key: "DMC_REMINDER_API_URL",
+        defaultValue: "https://membership.djakarta-miningclub.com/api/lead-followup-reminders",
+        description: "URL feed Lead Follow-Up DMC",
+    },
+    {
+        key: "DMC_REMINDER_DEVICE_ID",
+        defaultValue: "",
+        description: "ID device WA pengirim reminder DMC (lihat halaman Devices)",
+    },
+    {
+        key: "DMC_REMINDER_GROUP_ID",
+        defaultValue: "",
+        description: "ID grup tujuan reminder DMC (cek pakai !grupid), mis. 1203630xxxx@g.us",
+    },
+    {
+        key: "DMC_REMINDER_MENTIONS",
+        defaultValue: "",
+        description: "Nomor admin/PIC yang di-tag saat overdue, pisahkan koma, mis. 6281234567890,6289876543210",
+    },
+    {
+        key: "DMC_REMINDER_QUIET_HOURS",
+        defaultValue: "20-8",
+        description: "Jam tidak kirim reminder DMC (WIB), format mulai-selesai. Kosongkan = 24 jam",
+    },
 ];
 
 const TTL_MS = 30_000;

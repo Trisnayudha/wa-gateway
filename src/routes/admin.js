@@ -295,4 +295,26 @@ router.get("/devices/:id/groups/check", async (req, res) => {
     }
 });
 
+/**
+ * FOLLOW-UP REMINDER DMU & DMC (src/wa/followupReminderService.js)
+ */
+
+// POST /api/admin/followup-reminders/run?source=dmu|dmc&dry=1
+// Jalankan satu putaran sekarang, abaikan *_REMINDER_ENABLED & jam tenang.
+// dry=1 → tidak kirim & tidak mencatat, hanya tampilkan pesan yang AKAN dikirim.
+router.post("/followup-reminders/run", async (req, res) => {
+    try {
+        const followupReminderService = require("../wa/followupReminderService");
+        const source = String(req.query.source || "");
+        if (!followupReminderService.SOURCES[source]) {
+            return res.status(400).json({ ok: false, message: "query required: source=dmu|dmc" });
+        }
+        const dryRun = String(req.query.dry || "") === "1";
+        const result = await followupReminderService.runOnce(source, wa, { dryRun, force: true });
+        return res.json({ ok: true, source, dryRun, result });
+    } catch (err) {
+        return res.status(500).json({ ok: false, message: err.message || "Failed to run reminder" });
+    }
+});
+
 module.exports = router;

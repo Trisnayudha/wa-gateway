@@ -122,6 +122,27 @@ const EventScheduler = sequelize.define("EventScheduler", {
     is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
 }, { tableName: "event_schedulers", underscored: true });
 
+// ===== FOLLOW-UP REMINDERS (IM-DMU & DMC) =====
+// Log reminder lead yang sudah dikirim ke grup — satu baris per (source, lead, trigger, stage),
+// jadi tiap stage cuma terkirim sekali. trigger_at ikut di key: lead DMU yang submit ulang /
+// lead DMC yang pindah ke step berikutnya dapat trigger_at baru → reminder baru.
+// Lihat src/wa/followupReminderService.js.
+const FollowupReminder = sequelize.define("FollowupReminder", {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    source: { type: DataTypes.STRING(16), allowNull: false }, // "dmu" | "dmc"
+    lead_id: { type: DataTypes.INTEGER, allowNull: false },
+    trigger_at: { type: DataTypes.DATE, allowNull: false },
+    stage: { type: DataTypes.STRING(32), allowNull: false }, // dmu: 24h|48h, dmc: due_soon|overdue
+    lead_name: { type: DataTypes.STRING, allowNull: true },
+    company: { type: DataTypes.STRING, allowNull: true },
+    group_id: { type: DataTypes.STRING, allowNull: false },
+    message_id: { type: DataTypes.STRING, allowNull: true },
+}, {
+    tableName: "followup_reminders",
+    underscored: true,
+    indexes: [{ unique: true, fields: ["source", "lead_id", "trigger_at", "stage"] }],
+});
+
 // ===== ASSOCIATIONS =====
 Device.hasMany(ApiKey, { foreignKey: "device_id" });
 ApiKey.belongsTo(Device, { foreignKey: "device_id" });
@@ -135,4 +156,4 @@ CommandConfig.belongsTo(Device, { foreignKey: "device_id", constraints: false })
 Device.hasMany(EventScheduler, { foreignKey: "device_id", constraints: false });
 EventScheduler.belongsTo(Device, { foreignKey: "device_id", constraints: false });
 
-module.exports = { sequelize, User, Device, ApiKey, Message, CommandConfig, AppSetting, EventScheduler };
+module.exports = { sequelize, User, Device, ApiKey, Message, CommandConfig, AppSetting, EventScheduler, FollowupReminder };
