@@ -40,19 +40,17 @@ cukup app-nya hidup. Tabel `followup_reminders` dibuat otomatis saat boot
    membanjiri grup.
 2. **wa-gateway `.env`**: `DMU_REMINDER_API_KEY` (= `FOLLOWUP_REMINDER_API_KEY`
    im-dmu) dan `DMC_REMINDER_API_KEY` (= `LEAD_REMINDER_API_KEY` DMC). Restart app.
-3. **Halaman /settings** — per sumber (`DMU_REMINDER_*` / `DMC_REMINDER_*`):
-   - `_API_URL` — URL feed
-   - `_DEVICE_ID` — device pengirim (harus member grup)
-   - `_GROUP_ID` — ketik `!grupid` di grup tujuan untuk dapat ID-nya
-   - `_MENTIONS` — nomor admin/PIC yang di-tag di hard warning, pisah koma
-   - `_QUIET_HOURS` — default `20-8`: tidak kirim jam 20:00–07:59 WIB;
-     yang tertahan dikirim jam 08:00
-   - `_ENABLED` — set `1` paling akhir
-4. **Tes dulu** (login dashboard, lalu dari browser console / curl dengan cookie
-   session):
+3. **Menu Reminders** (`/reminders`) — satu kartu per sumber:
+   - status: API key di `.env`, device READY, grup, hasil tick terakhir (termasuk error,
+     mis. `API HTTP 401` = key tidak cocok)
+   - pilih device, pilih grup (tombol **Pilih** memuat daftar grup dari device),
+     nomor yang di-tag di hard warning, jam tenang (default `20-8`: tidak kirim
+     jam 20:00–07:59 WIB; yang tertahan dikirim jam 08:00), URL feed
+   - **Preview pesan** — lihat pesan yang AKAN dikirim, tanpa mengirim/mencatat
+   - **Kirim sekarang** — kirim langsung (abaikan status aktif & jam tenang)
+   - centang **Aktifkan auto reminder** + Simpan paling akhir, setelah preview benar
+   - di bawahnya: riwayat 50 reminder terakhir yang terkirim
 
-   ```
-   POST /api/admin/followup-reminders/run?source=dmu&dry=1   # lihat pesan yang AKAN dikirim
-   POST /api/admin/followup-reminders/run?source=dmc&dry=1
-   POST /api/admin/followup-reminders/run?source=dmc         # kirim sekarang (abaikan ENABLED & jam tenang)
-   ```
+   Setting yang sama tersimpan di `app_settings` (`DMU_REMINDER_*` / `DMC_REMINDER_*`,
+   juga muncul di /settings). Endpoint di balik tombolnya:
+   `POST /api/admin/followup-reminders/run?source=dmu|dmc[&dry=1]`.

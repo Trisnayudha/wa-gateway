@@ -27,6 +27,7 @@ const { getSetting } = require("../db/settings");
 const CRON_EXPRESSION = "*/15 * * * *";
 const TIMEZONE = "Asia/Jakarta";
 const MAX_PER_MESSAGE = 20; // sisanya ikut di tick berikutnya, biar pesan tidak kepanjangan
+const FETCH_TIMEOUT_MS = 30_000; // feed yang hang jangan sampai menahan sumber lain di tick yang sama
 
 let task = null;
 const running = new Set();
@@ -57,6 +58,11 @@ function fmtTime(iso) {
     return new Date(iso).toLocaleString("id-ID", {
         day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: TIMEZONE,
     });
+}
+
+/** Potong ke panjang kolom VARCHAR(255) — insert gagal SETELAH pesan terkirim = dikirim ulang tiap tick. */
+function clip(value, max = 255) {
+    return value == null ? null : String(value).slice(0, max);
 }
 
 function moreLine(remaining) {
@@ -165,6 +171,7 @@ async function fetchFeed(apiUrl, apiKeyEnv) {
 
     const res = await fetch(apiUrl, {
         headers: { Accept: "application/json", Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!res.ok) {
         const body = await res.text().catch(() => "");
@@ -211,7 +218,12 @@ async function runOnce(sourceKey, waManager, { dryRun = false, force = false } =
 
     const mentionNumbers = (await setting("MENTIONS")).split(",").map(normalizeNumber).filter(Boolean);
 
-    const feed = await fetchFeed(apiUrl, src.apiKeyEnv);
+    // Item tanpa key dedup yang valid tidak bisa dicatat → kalau tetap dikirim, terkirim ulang tiap tick
+    const feed = (await fetchFeed(apiUrl, src.apiKeyEnv)).filter((i) =>
+        Number.isInteger(Number(i?.lead_id)) &&
+        src.stageOrder.includes(i.stage) &&
+        !Number.isNaN(new Date(i.trigger_at).getTime())
+    );
     if (!feed.length) return { feed: 0, sent: {} };
 
     // Buang yang sudah pernah terkirim untuk (lead, trigger, stage) yang sama
@@ -249,8 +261,8 @@ async function runOnce(sourceKey, waManager, { dryRun = false, force = false } =
             lead_id: i.lead_id,
             trigger_at: new Date(i.trigger_at),
             stage,
-            lead_name: i.name,
-            company: i.company,
+            lead_name: clip(i.name),
+            company: clip(i.company),
             group_id: groupId,
             message_id: msg?.id?._serialized || null,
         })), { ignoreDuplicates: true });
@@ -261,16 +273,25 @@ async function runOnce(sourceKey, waManager, { dryRun = false, force = false } =
     return result;
 }
 
+// Hasil tick terakhir per sumber (in-memory, hilang saat restart) — ditampilkan di halaman /reminders
+const lastRuns = {};
+
+function getLastRun(sourceKey) {
+    return lastRuns[sourceKey] || null;
+}
+
 async function tick(sourceKey, waManager) {
     if (running.has(sourceKey)) return; // tick sebelumnya belum selesai
     running.add(sourceKey);
     try {
         const r = await runOnce(sourceKey, waManager);
+        lastRuns[sourceKey] = { at: new Date(), result: r };
         if (r.skipped) return; // diam saja: disabled / jam tenang / belum dikonfigurasi
         if (r.pending) {
             console.log(`[Reminder ${SOURCES[sourceKey].label}] feed=${r.feed} pending=${r.pending} sent=${JSON.stringify(r.sent)}`);
         }
     } catch (err) {
+        lastRuns[sourceKey] = { at: new Date(), error: err.message };
         console.error(`[Reminder ${SOURCES[sourceKey].label}] Error:`, err.message);
     } finally {
         running.delete(sourceKey);
@@ -287,4 +308,4 @@ function init(waManager) {
     console.log(`[Reminder] Scheduled DMU & DMC follow-up reminders (${CRON_EXPRESSION} ${TIMEZONE})`);
 }
 
-module.exports = { init, runOnce, inQuietHours, SOURCES };
+module.exports = { init, runOnce, inQuietHours, getLastRun, SOURCES };

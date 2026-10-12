@@ -16,6 +16,7 @@ const docsRoutes = require("./src/routes/docs");
 const commandRoutes = require("./src/routes/commands"); // ✅ TAMBAHAN
 const settingsRoutes = require("./src/routes/settings");
 const schedulerRoutes = require("./src/routes/schedulers");
+const reminderRoutes = require("./src/routes/reminders");
 const schedulerService = require("./src/wa/schedulerService");
 const followupReminderService = require("./src/wa/followupReminderService");
 const requireLogin = require("./src/middleware/requireLogin");
@@ -61,6 +62,7 @@ app.use("/", webRoutes);
 app.use("/", commandRoutes);              // ✅ TAMBAHAN
 app.use("/", settingsRoutes);
 app.use("/", schedulerRoutes);
+app.use("/", reminderRoutes);
 app.use("/api/admin", requireLogin, adminRoutes);
 app.use("/docs", docsRoutes);
 

@@ -1,0 +1,228 @@
+<%
+const esc = (s) => String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const fmt = (d) => d ? new Date(d).toLocaleString("id-ID", {
+    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
+}) : "-";
+
+const flashHtml = flash
+    ? `<div class="alert alert-${flash.type === 'danger' ? 'danger' : 'success'} alert-dismissible fade show" role="alert">
+         ${esc(flash.message)}
+         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+       </div>`
+    : '';
+
+function lastRunText(s) {
+    const lr = s.lastRun;
+    if (!lr) return '<span class="text-secondary">belum ada sejak app terakhir di-restart</span>';
+    if (lr.error) return `<span class="text-danger">${fmt(lr.at)} — error: ${esc(lr.error)}</span>`;
+    const r = lr.result || {};
+    if (r.skipped) return `<span class="text-secondary">${fmt(lr.at)} — dilewati: ${esc(r.skipped)}</span>`;
+    const sent = Object.entries(r.sent || {}).map(([k, v]) => `${k}: ${v}`).join(", ");
+    return `<span class="text-success">${fmt(lr.at)} — ${r.feed || 0} lead di feed, terkirim ${sent || "0 (semua sudah pernah dikirim)"}</span>`;
+}
+
+function check(ok, okText, badText) {
+    return ok
+        ? `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>${okText}</span>`
+        : `<span class="text-danger"><i class="bi bi-x-circle-fill me-1"></i>${badText}</span>`;
+}
+
+const sourceCards = (sources || []).map((s) => {
+    const v = s.values;
+    const enabled = v.ENABLED === "1";
+    const deviceOptions = (devices || []).map((d) =>
+        `<option value="${esc(d.id)}" ${d.id === v.DEVICE_ID ? 'selected' : ''}>${esc(d.name)} (${esc(d.status)})</option>`
+    ).join('');
+
+    return `
+    <div class="card card-shadow mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                <div>
+                    <h5 class="mb-1">${esc(s.title)}</h5>
+                    <div class="text-secondary small" style="max-width:640px">${esc(s.rule)}</div>
+                </div>
+                ${enabled
+                    ? '<span class="badge text-bg-success fs-6">AKTIF</span>'
+                    : '<span class="badge text-bg-secondary fs-6">NONAKTIF</span>'}
+            </div>
+
+            <div class="small border rounded p-2 mb-3 bg-light">
+                <div>${check(s.hasApiKey, `API key ada di .env (${esc(s.apiKeyEnv)})`, `${esc(s.apiKeyEnv)} belum di-set di .env — isi lalu restart app`)}</div>
+                <div>${check(s.deviceReady, `Device ${esc(s.deviceName)} READY`, s.deviceName ? `Device ${esc(s.deviceName)} belum READY — scan QR di menu Devices` : 'Device belum dipilih')}</div>
+                <div>${check(!!v.GROUP_ID, `Grup: <code>${esc(v.GROUP_ID)}</code>`, 'Grup belum dipilih')}</div>
+                <div class="mt-1"><i class="bi bi-clock-history me-1"></i>Terakhir jalan: ${lastRunText(s)}</div>
+                ${s.quietNow ? `<div class="text-warning"><i class="bi bi-moon-fill me-1"></i>Sekarang jam tenang (${esc(v.QUIET_HOURS)} WIB) — reminder ditahan sampai jam tenang selesai.</div>` : ''}
+            </div>
+
+            <form method="POST" action="/reminders/${esc(s.key)}">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" name="ENABLED" value="1" id="en_${esc(s.key)}" ${enabled ? 'checked' : ''}>
+                    <label class="form-check-label fw-semibold" for="en_${esc(s.key)}">Aktifkan auto reminder (cek tiap 15 menit)</label>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Device pengirim</label>
+                        <select name="DEVICE_ID" class="form-select" id="dev_${esc(s.key)}">
+                            <option value="">-- Pilih device --</option>
+                            ${deviceOptions}
+                        </select>
+                        <div class="form-text">Nomor WA ini harus sudah jadi anggota grup tujuan.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Grup tujuan</label>
+                        <div class="input-group">
+                            <input type="text" name="GROUP_ID" class="form-control" id="grp_${esc(s.key)}"
+                                   value="${esc(v.GROUP_ID)}" placeholder="120363xxxxxxxx@g.us">
+                            <button type="button" class="btn btn-outline-primary" onclick="loadGroups('${esc(s.key)}')">
+                                <i class="bi bi-people"></i> Pilih
+                            </button>
+                        </div>
+                        <select class="form-select mt-2 d-none" id="grpsel_${esc(s.key)}" onchange="pickGroup('${esc(s.key)}', this.value)"></select>
+                        <div class="form-text" id="grpinfo_${esc(s.key)}">Klik <b>Pilih</b> untuk memuat daftar grup dari device, atau ketik <code>!grupid</code> di grup.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Nomor yang di-tag saat hard warning</label>
+                        <input type="text" name="MENTIONS" class="form-control" value="${esc(v.MENTIONS)}"
+                               placeholder="6281234567890, 6289876543210">
+                        <div class="form-text">Admin / PIC. Pisahkan dengan koma. Awalan 0 otomatis jadi 62.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Jam tenang (WIB)</label>
+                        <input type="text" name="QUIET_HOURS" class="form-control" value="${esc(v.QUIET_HOURS)}" placeholder="20-8">
+                        <div class="form-text"><code>20-8</code> = tidak kirim jam 20:00–07:59; yang tertahan dikirim jam 08:00. Kosongkan = kirim 24 jam.</div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-semibold small">URL feed ${esc(s.label)}</label>
+                        <input type="text" name="API_URL" class="form-control font-monospace" value="${esc(v.API_URL)}">
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-floppy me-1"></i> Simpan</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="runReminder('${esc(s.key)}', true)">
+                        <i class="bi bi-eye me-1"></i> Preview pesan
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" onclick="runReminder('${esc(s.key)}', false)">
+                        <i class="bi bi-send me-1"></i> Kirim sekarang
+                    </button>
+                </div>
+                <div class="form-text">Preview &amp; Kirim sekarang memakai setting yang <b>sudah disimpan</b> — simpan dulu kalau baru diubah.</div>
+            </form>
+
+            <div id="out_${esc(s.key)}" class="mt-3"></div>
+        </div>
+    </div>`;
+}).join('');
+
+const historyRows = (history || []).map((h) => `
+    <tr>
+        <td class="text-nowrap">${fmt(h.created_at || h.createdAt)}</td>
+        <td><span class="badge text-bg-${h.source === 'dmc' ? 'info' : 'primary'}">${esc(String(h.source).toUpperCase())}</span></td>
+        <td><span class="badge text-bg-${['48h', 'overdue'].includes(h.stage) ? 'danger' : 'warning'}">${esc(h.stage)}</span></td>
+        <td>${esc(h.lead_name || '-')} <span class="text-secondary small">#${esc(h.lead_id)}</span></td>
+        <td>${esc(h.company || '-')}</td>
+    </tr>`).join('');
+
+const body = `
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h5 class="mb-0">Follow-up Reminders</h5>
+        <div class="text-secondary small">Reminder otomatis ke grup WA untuk lead IM-DMU &amp; DMC yang belum di-follow up. Lead yang sudah di-follow up otomatis berhenti diingatkan.</div>
+    </div>
+</div>
+
+${flashHtml}
+${sourceCards}
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <h6 class="fw-bold mb-3"><i class="bi bi-clock-history me-1"></i>Riwayat terkirim (50 terakhir)</h6>
+        ${historyRows
+            ? `<div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                 <thead class="table-light"><tr><th>Waktu</th><th>Sumber</th><th>Stage</th><th>Lead</th><th>Perusahaan</th></tr></thead>
+                 <tbody>${historyRows}</tbody></table></div>`
+            : '<div class="text-secondary small">Belum ada reminder yang terkirim.</div>'}
+    </div>
+</div>
+
+<script>
+function escHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+}
+
+async function loadGroups(src) {
+    var dev = document.getElementById("dev_" + src).value;
+    var info = document.getElementById("grpinfo_" + src);
+    var sel = document.getElementById("grpsel_" + src);
+    if (!dev) { info.innerHTML = '<span class="text-danger">Pilih device dulu.</span>'; return; }
+    info.textContent = "Memuat grup...";
+    try {
+        var res = await fetch("/api/admin/devices/" + encodeURIComponent(dev) + "/groups");
+        var j = await res.json();
+        if (!j.ok) throw new Error(j.message || "Gagal memuat grup");
+        sel.innerHTML = '<option value="">-- Pilih grup (' + j.groups.length + ') --</option>' +
+            j.groups.map(function (g) {
+                return '<option value="' + escHtml(g.id) + '">' + escHtml(g.name || g.id) +
+                    (g.participants != null ? ' (' + g.participants + ' anggota)' : '') + '</option>';
+            }).join("");
+        sel.classList.remove("d-none");
+        info.textContent = "Pilih grup dari daftar.";
+    } catch (e) {
+        info.innerHTML = '<span class="text-danger">' + escHtml(e.message) + '</span>';
+    }
+}
+
+function pickGroup(src, id) {
+    if (id) document.getElementById("grp_" + src).value = id;
+}
+
+async function runReminder(src, dry) {
+    var out = document.getElementById("out_" + src);
+    if (!dry && !confirm("Kirim reminder " + src.toUpperCase() + " ke grup SEKARANG? (mengabaikan status aktif & jam tenang)")) return;
+    out.innerHTML = '<div class="text-secondary small">' + (dry ? "Mengambil preview..." : "Mengirim...") + '</div>';
+    try {
+        var res = await fetch("/api/admin/followup-reminders/run?source=" + src + (dry ? "&dry=1" : ""), { method: "POST" });
+        var j = await res.json();
+        if (!j.ok) throw new Error(j.message || "Gagal");
+        var r = j.result || {};
+        if (r.skipped) {
+            out.innerHTML = '<div class="alert alert-warning mb-0">Dilewati: ' + escHtml(r.skipped) + '</div>';
+        } else if (!r.feed) {
+            out.innerHTML = '<div class="alert alert-success mb-0">Tidak ada lead yang perlu diingatkan saat ini.</div>';
+        } else if (dry) {
+            var msgs = r.messages || [];
+            out.innerHTML = '<div class="alert alert-info">' + r.feed + ' lead di feed, ' + (r.pending || 0) +
+                ' belum pernah dikirim → ' + msgs.length + ' pesan akan dikirim.</div>' +
+                msgs.map(function (m) {
+                    return '<div class="small fw-semibold mb-1">Stage: ' + escHtml(m.stage) + '</div>' +
+                        '<pre class="border rounded p-2 bg-light small" style="white-space:pre-wrap;max-height:360px;overflow:auto">' +
+                        escHtml(m.text) + '</pre>';
+                }).join("");
+        } else {
+            var sent = Object.keys(r.sent || {}).map(function (k) { return k + ": " + r.sent[k]; }).join(", ");
+            out.innerHTML = '<div class="alert alert-success mb-0">Terkirim — ' + escHtml(sent || "0 (semua sudah pernah dikirim)") +
+                '. <a href="/reminders">Refresh</a> untuk lihat riwayat.</div>';
+        }
+    } catch (e) {
+        out.innerHTML = '<div class="alert alert-danger mb-0">' + escHtml(e.message) + '</div>';
+    }
+}
+</script>
+`;
+%>
+
+<%- include('layout', { title: 'Follow-up Reminders', active: 'reminders', user, body }) %>
