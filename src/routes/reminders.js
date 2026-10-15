@@ -4,6 +4,7 @@ const router = express.Router();
 const { Device, FollowupReminder } = require("../db/models");
 const { getSetting, setSetting, REGISTRY } = require("../db/settings");
 const followupReminderService = require("../wa/followupReminderService");
+const dailyMovementService = require("../wa/dailyMovementService");
 const waManager = require("../wa/manager");
 const requireLogin = require("../middleware/requireLogin");
 
@@ -71,6 +72,13 @@ router.get("/reminders", async (req, res) => {
             limit: 50,
         });
 
+        const movementStatus = await dailyMovementService.getStatus();
+        const movement = {
+            ...movementStatus,
+            groupOverride: String(await getSetting("DMU_MOVEMENT_GROUP_ID", "") || ""),
+            apiOverride: String(await getSetting("DMU_MOVEMENT_API_URL", "") || ""),
+        };
+
         res.render("reminders", {
             title: "Follow-up Reminders",
             active: "reminders",
@@ -78,6 +86,7 @@ router.get("/reminders", async (req, res) => {
             devices,
             sources,
             history,
+            movement,
             flash: req.session.flash || null,
         });
         delete req.session.flash;
@@ -85,6 +94,38 @@ router.get("/reminders", async (req, res) => {
         console.error("[reminders] index error:", err);
         res.status(500).send("Server error");
     }
+});
+
+// ─────────────────────────────────────────────────────────
+// POST /reminders/movement → simpan setting Daily Movement DMU
+// (didaftarkan SEBELUM /reminders/:source supaya "movement" tidak dianggap nama sumber)
+// ─────────────────────────────────────────────────────────
+router.post("/reminders/movement", async (req, res) => {
+    try {
+        const body = req.body || {};
+        const enabled = body.ENABLED === "1" || body.ENABLED === "on" ? "1" : "0";
+        const time = String(body.TIME || "").trim() || "08:30";
+        if (dailyMovementService.parseTime(time) == null) {
+            throw new Error(`Format jam tidak valid: "${time}" (contoh: 08:30)`);
+        }
+        const values = {
+            DMU_MOVEMENT_ENABLED: enabled,
+            DMU_MOVEMENT_TIME: time.padStart(5, "0"),
+            DMU_MOVEMENT_GROUP_ID: normalizeGroupId(body.GROUP_ID),
+            DMU_MOVEMENT_API_URL: String(body.API_URL || "").trim(),
+        };
+        for (const [key, value] of Object.entries(values)) {
+            await setSetting(key, value, REGISTRY.find((r) => r.key === key)?.description || null);
+        }
+        req.session.flash = {
+            type: "success",
+            message: `Daily Movement disimpan${enabled === "1" ? ` — AKTIF, dikirim tiap hari jam ${values.DMU_MOVEMENT_TIME} WIB.` : " (nonaktif)."}`,
+        };
+    } catch (err) {
+        console.error("[reminders] movement save error:", err);
+        req.session.flash = { type: "danger", message: `Gagal menyimpan Daily Movement: ${err.message}` };
+    }
+    res.redirect("/reminders");
 });
 
 // ─────────────────────────────────────────────────────────

@@ -45,6 +45,29 @@ const REGISTRY = [
         defaultValue: "20-8",
         description: "Jam tidak kirim (WIB), format mulai-selesai. Reminder yang tertahan dikirim setelahnya. Kosongkan = 24 jam",
     },
+    // ── Daily Movement DMU (src/wa/dailyMovementService.js) ──
+    // Device & API key ikut reminder DMU.
+    {
+        key: "DMU_MOVEMENT_ENABLED",
+        defaultValue: "0",
+        description: "1 = kirim rekap harian Daily Movement DMU ke grup tiap pagi, 0 = mati",
+        type: "number",
+    },
+    {
+        key: "DMU_MOVEMENT_TIME",
+        defaultValue: "08:30",
+        description: "Jam kirim rekap Daily Movement (WIB), format HH:MM. Isinya rekap hari kemarin",
+    },
+    {
+        key: "DMU_MOVEMENT_GROUP_ID",
+        defaultValue: "",
+        description: "Grup tujuan rekap Daily Movement. Kosong = sama dengan DMU_REMINDER_GROUP_ID",
+    },
+    {
+        key: "DMU_MOVEMENT_API_URL",
+        defaultValue: "",
+        description: "URL feed Daily Movement. Kosong = otomatis dari DMU_REMINDER_API_URL (…/api/daily-movement)",
+    },
     // ── Reminder Lead Follow-Up sponsor DMC (src/wa/followupReminderService.js) ──
     // API key-nya di .env (DMC_REMINDER_API_KEY).
     {

@@ -299,6 +299,21 @@ router.get("/devices/:id/groups/check", async (req, res) => {
  * FOLLOW-UP REMINDER DMU & DMC (src/wa/followupReminderService.js)
  */
 
+// POST /api/admin/daily-movement/run?dry=1&date=YYYY-MM-DD
+// Kirim / preview rekap Daily Movement DMU sekarang (abaikan ENABLED & jam kirim; tidak
+// mengubah DMU_MOVEMENT_LAST_SENT, jadi jadwal pagi tetap jalan). date kosong = kemarin.
+router.post("/daily-movement/run", async (req, res) => {
+    try {
+        const dailyMovementService = require("../wa/dailyMovementService");
+        const dryRun = String(req.query.dry || "") === "1";
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.date || "")) ? String(req.query.date) : null;
+        const result = await dailyMovementService.runOnce(wa, { dryRun, date });
+        return res.json({ ok: true, dryRun, result });
+    } catch (err) {
+        return res.status(500).json({ ok: false, message: err.message || "Failed to run daily movement" });
+    }
+});
+
 // POST /api/admin/followup-reminders/run?source=dmu|dmc&dry=1
 // Jalankan satu putaran sekarang, abaikan *_REMINDER_ENABLED & jam tenang.
 // dry=1 → tidak kirim & tidak mencatat, hanya tampilkan pesan yang AKAN dikirim.

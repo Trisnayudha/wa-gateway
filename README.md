@@ -54,3 +54,24 @@ cukup app-nya hidup. Tabel `followup_reminders` dibuat otomatis saat boot
    Setting yang sama tersimpan di `app_settings` (`DMU_REMINDER_*` / `DMC_REMINDER_*`,
    juga muncul di /settings). Endpoint di balik tombolnya:
    `POST /api/admin/followup-reminders/run?source=dmu|dmc[&dry=1]`.
+
+## Daily Movement IM-DMU (rekap harian ke grup)
+
+`src/wa/dailyMovementService.js` — tiap pagi kirim rekap pergerakan lead DMU hari
+**kemarin** ke grup: lead masuk, follow-up dicatat per orang, pergerakan status
+(outcome, registered, temperature naik), dan PR hari ini (belum di-follow up
+>24/48 jam, jadwal follow-up hari ini). Angkanya dari DMU
+`GET /api/daily-movement` — sama persis dengan menu **Daily Movement** di DMU.
+
+- Cek tiap menit; kirim sekali sehari begitu jam WIB ≥ `DMU_MOVEMENT_TIME`
+  (default `08:30`). Tanggal terakhir terkirim disimpan di `app_settings`
+  (`DMU_MOVEMENT_LAST_SENT`), jadi restart tidak membuat rekap dobel; app yang baru
+  hidup setelah jam kirim tetap mengirim, maksimal 4 jam setelahnya.
+- Device & API key ikut reminder IM-DMU (`DMU_REMINDER_DEVICE_ID`,
+  `DMU_REMINDER_API_KEY`). Grup default = grup reminder IM-DMU, bisa diganti di
+  `DMU_MOVEMENT_GROUP_ID`. URL feed default diturunkan dari `DMU_REMINDER_API_URL`
+  (`…/followup-reminders` → `…/daily-movement`).
+- Atur di menu **Reminders** → kartu "IM-DMU — Daily Movement": aktifkan, jam
+  kirim, grup, **Preview pesan** / **Kirim sekarang** (bisa pilih tanggal; tidak
+  mengganggu jadwal pagi). Endpoint di baliknya:
+  `POST /api/admin/daily-movement/run[?dry=1][&date=YYYY-MM-DD]`.

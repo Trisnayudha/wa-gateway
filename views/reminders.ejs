@@ -135,6 +135,73 @@ const historyRows = (history || []).map((h) => `
         <td>${esc(h.company || '-')}</td>
     </tr>`).join('');
 
+const mv = movement || { config: {} };
+const mvCfg = mv.config || {};
+const mvEnabled = !!mvCfg.enabled;
+const mvLastRun = (() => {
+    const lr = mv.lastRun;
+    if (!lr) return '<span class="text-secondary">belum ada sejak app terakhir di-restart</span>';
+    if (lr.error) return `<span class="text-danger">${fmt(lr.at)} — error: ${esc(lr.error)}</span>`;
+    if (lr.result && lr.result.skipped) return `<span class="text-secondary">${fmt(lr.at)} — dilewati: ${esc(lr.result.skipped)}</span>`;
+    return `<span class="text-success">${fmt(lr.at)} — rekap ${esc(lr.result && lr.result.date)} terkirim</span>`;
+})();
+const movementCard = `
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+            <div>
+                <h5 class="mb-1">IM-DMU — Daily Movement</h5>
+                <div class="text-secondary small" style="max-width:640px">Rekap harian ke grup: lead masuk, follow-up per orang, pergerakan status, dan PR hari ini. Angkanya sama dengan menu <b>Daily Movement</b> di DMU. Dikirim sekali sehari berisi rekap hari kemarin.</div>
+            </div>
+            ${mvEnabled
+                ? '<span class="badge text-bg-success fs-6">AKTIF</span>'
+                : '<span class="badge text-bg-secondary fs-6">NONAKTIF</span>'}
+        </div>
+
+        <div class="small border rounded p-2 mb-3 bg-light">
+            <div>${check(!!mvCfg.deviceId, 'Device &amp; API key ikut setting reminder IM-DMU di atas', 'Pilih device di kartu reminder IM-DMU dulu')}</div>
+            <div>${check(!!mvCfg.groupId, `Grup: <code>${esc(mvCfg.groupId)}</code>${mv.groupOverride ? '' : ' <span class="text-secondary">(sama dengan grup reminder)</span>'}`, 'Grup belum dipilih')}</div>
+            <div>${check(!!mvCfg.apiUrl, `Feed: <code>${esc(mvCfg.apiUrl)}</code>`, 'URL feed belum ada — isi URL feed reminder IM-DMU dulu')}</div>
+            <div class="mt-1"><i class="bi bi-send-check me-1"></i>Terakhir terkirim terjadwal: ${mv.lastSent ? esc(mv.lastSent) : '<span class="text-secondary">belum pernah</span>'}</div>
+            <div><i class="bi bi-clock-history me-1"></i>Terakhir jalan: ${mvLastRun}</div>
+        </div>
+
+        <form method="POST" action="/reminders/movement">
+            <div class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" name="ENABLED" value="1" id="en_movement" ${mvEnabled ? 'checked' : ''}>
+                <label class="form-check-label fw-semibold" for="en_movement">Kirim rekap Daily Movement tiap hari</label>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold small">Jam kirim (WIB)</label>
+                    <input type="time" name="TIME" class="form-control" value="${esc(mvCfg.time || '08:30')}">
+                    <div class="form-text">Kalau app mati di jam itu, dikirim begitu hidup lagi (maks. 4 jam setelahnya).</div>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label fw-semibold small">Grup tujuan (opsional)</label>
+                    <input type="text" name="GROUP_ID" class="form-control" value="${esc(mv.groupOverride)}" placeholder="kosong = grup reminder IM-DMU">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold small">URL feed (opsional)</label>
+                    <input type="text" name="API_URL" class="form-control font-monospace" value="${esc(mv.apiOverride)}" placeholder="kosong = otomatis">
+                </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-4 align-items-center">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-floppy me-1"></i> Simpan</button>
+                <input type="date" class="form-control" style="width:170px" id="mv_date" title="Tanggal rekap (kosong = kemarin)">
+                <button type="button" class="btn btn-outline-secondary" onclick="runMovement(true)">
+                    <i class="bi bi-eye me-1"></i> Preview pesan
+                </button>
+                <button type="button" class="btn btn-outline-danger" onclick="runMovement(false)">
+                    <i class="bi bi-send me-1"></i> Kirim sekarang
+                </button>
+            </div>
+            <div class="form-text">Tanggal kosong = rekap kemarin. Kirim sekarang tidak mengganggu jadwal pagi.</div>
+        </form>
+        <div id="out_movement" class="mt-3"></div>
+    </div>
+</div>`;
+
 const body = `
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -145,6 +212,7 @@ const body = `
 
 ${flashHtml}
 ${sourceCards}
+${movementCard}
 
 <div class="card card-shadow">
     <div class="card-body">
@@ -188,6 +256,29 @@ async function loadGroups(src) {
 
 function pickGroup(src, id) {
     if (id) document.getElementById("grp_" + src).value = id;
+}
+
+async function runMovement(dry) {
+    var out = document.getElementById("out_movement");
+    var date = document.getElementById("mv_date").value;
+    if (!dry && !confirm("Kirim rekap Daily Movement " + (date || "kemarin") + " ke grup SEKARANG?")) return;
+    out.innerHTML = '<div class="text-secondary small">' + (dry ? "Mengambil preview..." : "Mengirim...") + '</div>';
+    try {
+        var url = "/api/admin/daily-movement/run?" + (dry ? "dry=1&" : "") + (date ? "date=" + encodeURIComponent(date) : "");
+        var res = await fetch(url, { method: "POST" });
+        var j = await res.json();
+        if (!j.ok) throw new Error(j.message || "Gagal");
+        var r = j.result || {};
+        if (r.skipped) {
+            out.innerHTML = '<div class="alert alert-warning mb-0">Dilewati: ' + escHtml(r.skipped) + '</div>';
+        } else if (dry) {
+            out.innerHTML = '<pre class="border rounded p-2 bg-light small" style="white-space:pre-wrap;max-height:420px;overflow:auto">' + escHtml(r.text) + '</pre>';
+        } else {
+            out.innerHTML = '<div class="alert alert-success mb-0">Rekap ' + escHtml(r.date) + ' terkirim ke grup.</div>';
+        }
+    } catch (e) {
+        out.innerHTML = '<div class="alert alert-danger mb-0">' + escHtml(e.message) + '</div>';
+    }
 }
 
 async function runReminder(src, dry) {
