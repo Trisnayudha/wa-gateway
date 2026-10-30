@@ -20,6 +20,7 @@ const reminderRoutes = require("./src/routes/reminders");
 const schedulerService = require("./src/wa/schedulerService");
 const followupReminderService = require("./src/wa/followupReminderService");
 const dailyMovementService = require("./src/wa/dailyMovementService");
+const renewalReminderService = require("./src/wa/renewalReminderService");
 const requireLogin = require("./src/middleware/requireLogin");
 const expressLayouts = require("express-ejs-layouts");
 
@@ -77,6 +78,7 @@ app.use("/docs", docsRoutes);
         await schedulerService.init(wa);
         followupReminderService.init(wa);
         dailyMovementService.init(wa);
+        renewalReminderService.init(wa);
 
         const PORT = process.env.PORT || 3100;
         server = app.listen(PORT, () =>

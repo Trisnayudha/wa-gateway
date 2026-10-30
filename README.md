@@ -75,3 +75,22 @@ cukup app-nya hidup. Tabel `followup_reminders` dibuat otomatis saat boot
   kirim, grup, **Preview pesan** / **Kirim sekarang** (bisa pilih tanggal; tidak
   mengganggu jadwal pagi). Endpoint di baliknya:
   `POST /api/admin/daily-movement/run[?dry=1][&date=YYYY-MM-DD]`.
+
+## Reminder renewal sponsor DMC (bulanan ke grup finance)
+
+`src/wa/renewalReminderService.js` — sebulan sekali kirim daftar sponsor DMC yang
+kontraknya berakhir (sudah lewat / bulan ini / bulan depan) tapi renewal form-nya
+belum di-generate. Data dari DMC `GET /api/sponsor-renewal-reminders`; sponsor hilang
+sendiri dari daftar begitu renewal form di-generate atau renewal di-confirm.
+
+- Kirim tanggal `DMC_RENEWAL_REMINDER_DAY` (default `20`) jam
+  `DMC_RENEWAL_REMINDER_TIME` WIB (default `09:00`). Jatuh Sabtu/Minggu → hari kerja
+  berikutnya. App mati di hari itu → dikejar paling lambat tanggal 22 (selalu
+  sebelum tanggal 23). Bulan terakhir terkirim disimpan di `app_settings`
+  (`DMC_RENEWAL_REMINDER_LAST_SENT`), jadi tidak dobel.
+- Device, URL & API key ikut reminder DMC (`DMC_REMINDER_DEVICE_ID`,
+  `DMC_REMINDER_API_URL` → `…/sponsor-renewal-reminders`, `DMC_REMINDER_API_KEY`).
+  Grup finance di `DMC_RENEWAL_REMINDER_GROUP_ID` (kosong = grup reminder DMC).
+- Aktifkan dengan `DMC_RENEWAL_REMINDER_ENABLED=1` di menu **Settings**. Preview /
+  kirim sekarang (tidak mengganggu jadwal bulanan):
+  `POST /api/admin/renewal-reminders/run[?dry=1]`.

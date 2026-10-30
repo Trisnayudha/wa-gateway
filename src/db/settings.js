@@ -101,6 +101,35 @@ const REGISTRY = [
         defaultValue: "20-8",
         description: "Jam tidak kirim reminder DMC (WIB), format mulai-selesai. Kosongkan = 24 jam",
     },
+    // ── Reminder renewal sponsor DMC ke finance (src/wa/renewalReminderService.js) ──
+    // Device, API URL & API key ikut reminder DMC.
+    {
+        key: "DMC_RENEWAL_REMINDER_ENABLED",
+        defaultValue: "0",
+        description: "1 = kirim reminder bulanan sponsor yang belum punya renewal form ke grup finance, 0 = mati",
+        type: "number",
+    },
+    {
+        key: "DMC_RENEWAL_REMINDER_DAY",
+        defaultValue: "20",
+        description: "Tanggal kirim tiap bulan (1-22). Sabtu/Minggu → hari kerja berikutnya; dikejar paling lambat tgl 22",
+        type: "number",
+    },
+    {
+        key: "DMC_RENEWAL_REMINDER_TIME",
+        defaultValue: "09:00",
+        description: "Jam kirim reminder renewal (WIB), format HH:MM",
+    },
+    {
+        key: "DMC_RENEWAL_REMINDER_GROUP_ID",
+        defaultValue: "",
+        description: "Grup finance tujuan reminder renewal. Kosong = sama dengan DMC_REMINDER_GROUP_ID",
+    },
+    {
+        key: "DMC_RENEWAL_REMINDER_API_URL",
+        defaultValue: "",
+        description: "URL feed renewal DMC. Kosong = otomatis dari DMC_REMINDER_API_URL (…/api/sponsor-renewal-reminders)",
+    },
 ];
 
 const TTL_MS = 30_000;

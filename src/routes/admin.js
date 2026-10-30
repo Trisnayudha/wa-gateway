@@ -314,6 +314,20 @@ router.post("/daily-movement/run", async (req, res) => {
     }
 });
 
+// POST /api/admin/renewal-reminders/run?dry=1
+// Kirim / preview reminder renewal sponsor DMC sekarang (abaikan ENABLED & jadwal; tidak
+// mengubah DMC_RENEWAL_REMINDER_LAST_SENT, jadi jadwal bulanan tetap jalan).
+router.post("/renewal-reminders/run", async (req, res) => {
+    try {
+        const renewalReminderService = require("../wa/renewalReminderService");
+        const dryRun = String(req.query.dry || "") === "1";
+        const result = await renewalReminderService.runOnce(wa, { dryRun });
+        return res.json({ ok: true, dryRun, result });
+    } catch (err) {
+        return res.status(500).json({ ok: false, message: err.message || "Failed to run renewal reminder" });
+    }
+});
+
 // POST /api/admin/followup-reminders/run?source=dmu|dmc&dry=1
 // Jalankan satu putaran sekarang, abaikan *_REMINDER_ENABLED & jam tenang.
 // dry=1 → tidak kirim & tidak mencatat, hanya tampilkan pesan yang AKAN dikirim.
